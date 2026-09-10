@@ -56,7 +56,7 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
 
     // TDLib Telegram
-    implementation("dev.g000sha256:tdl-coroutines:13.0.0")
+    implementation("dev.g000sha256:tdl-coroutines:14.0.0")
 
     // contrseña 2f
     implementation("androidx.compose.material3:material3:1.3.1")
@@ -74,6 +74,9 @@ dependencies {
     implementation("io.ktor:ktor-server-cio:3.0.0")
     // NUEVO: necesario para call.respondBytesWriter / streaming de bytes
     implementation("io.ktor:ktor-utils:3.0.0")
+
+    //idioma
+    implementation("androidx.appcompat:appcompat:1.7.0")
 
     // Jetpack Compose & TV
     implementation(platform(libs.androidx.compose.bom))
