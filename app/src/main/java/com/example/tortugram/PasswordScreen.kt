@@ -1,24 +1,32 @@
 package com.example.tortugram
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Text
 
 /**
- * Pantalla "Dentro del verificador de 2F"
+ * "Inside the 2FA verifier" screen
  * isaac-maker 2026
  */
 
@@ -43,11 +51,11 @@ fun PasswordScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Verificación en dos pasos")
+        Text(text = "Two-Factor Verification", color = Color.White)
 
         if (!hint.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Pista: $hint")
+            Text(text = "Hint: $hint", color = Color.White)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -55,30 +63,45 @@ fun PasswordScreen(
         BasicTextField(
             value = password,
             onValueChange = { password = it },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = PasswordVisualTransformation(mask = '•'),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             singleLine = true,
+            textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+            cursorBrush = SolidColor(Color.White),
             modifier = Modifier
                 .focusRequester(focusRequester)
-                .background(Color.DarkGray)
-                .padding(12.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF2B2B2B))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp)
                 .fillMaxWidth(0.5f)
         )
 
         if (!error.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = error)
+            Text(text = error, color = Color(0xFFFF6B6B))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Box(
             modifier = Modifier
-                .background(Color.Blue)
+                .clip(RoundedCornerShape(10.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(Color(0xFF2AABEE), Color(0xFF229ED9))
+                    )
+                )
                 .clickable { onSubmit(password) }
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .padding(horizontal = 32.dp, vertical = 14.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text("Ingresar")
+            Text(
+                text = "Log In",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
         }
     }
 }

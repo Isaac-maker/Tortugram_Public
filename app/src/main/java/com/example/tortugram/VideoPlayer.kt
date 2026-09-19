@@ -1,5 +1,7 @@
 package com.example.tortugram
 
+import android.app.Activity
+import android.view.WindowManager
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -16,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -82,9 +85,14 @@ fun rememberVideoPlayerState(): VideoPlayerState = remember { VideoPlayerState()
 fun VideoPlayer(
     file: File,
     state: VideoPlayerState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // false = comportamiento de siempre (VideoPlayerScreen). true = se usa
+    // para los "gifs" (que en realidad son videos mp4 cortos y silenciosos),
+    // para que se repitan solos como un gif de verdad.
+    loop: Boolean = false
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val streamUrl = remember(file.id) {
         StreamingServer.urlFor(file.id, file.size)
     }
@@ -97,6 +105,7 @@ fun VideoPlayer(
                     .setMimeType(MimeTypes.VIDEO_MP4)
                     .build()
             )
+            repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
             prepare()
             playWhenReady = true
         }
@@ -104,6 +113,8 @@ fun VideoPlayer(
 
     DisposableEffect(exoPlayer) {
         state.exoPlayer = exoPlayer
+        val activity = view.context as? Activity
+
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 state.isBuffering = playbackState == Player.STATE_BUFFERING
@@ -114,6 +125,12 @@ fun VideoPlayer(
 
             override fun onIsPlayingChanged(playing: Boolean) {
                 state.isPlaying = playing
+                // Mantiene la pantalla encendida solo mientras se reproduce activamente
+                if (playing) {
+                    activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -121,10 +138,13 @@ fun VideoPlayer(
             }
         }
         exoPlayer.addListener(listener)
+
         onDispose {
             exoPlayer.removeListener(listener)
             exoPlayer.release()
             state.exoPlayer = null
+            // Libera la flag por seguridad al salir del reproductor
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 

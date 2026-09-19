@@ -18,6 +18,9 @@
     <string name="video_no_name">Unnamed video</string>
     <string name="video_title_fallback">Video</string>
     <string name="btn_back_home">← Back to Home</string>
+    <string name="image_thumbnail_desc">Image thumbnail</string>
+    <string name="gif_thumbnail_desc">GIF thumbnail</string>
+    <string name="close_desc">Close</string>
 
     <string name="storage_title">Storage</string>
     <string name="btn_back">← Back</string>

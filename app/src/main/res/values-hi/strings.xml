@@ -18,6 +18,9 @@
     <string name="video_no_name">अनाम वीडियो</string>
     <string name="video_title_fallback">वीडियो</string>
     <string name="btn_back_home">← होम पर वापस जाएँ</string>
+    <string name="image_thumbnail_desc">छवि थंबनेल</string>
+    <string name="gif_thumbnail_desc">GIF थंबनेल</string>
+    <string name="close_desc">बंद करें</string>
 
     <string name="storage_title">स्टोरेज</string>
     <string name="btn_back">← वापस</string>

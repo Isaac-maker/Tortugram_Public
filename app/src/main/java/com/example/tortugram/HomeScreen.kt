@@ -2,13 +2,15 @@ package com.example.tortugram
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -16,21 +18,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.tv.material3.Button
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Tab
+import androidx.tv.material3.TabDefaults
 import androidx.tv.material3.TabRow
+import androidx.tv.material3.TabRowDefaults
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import dev.g000sha256.tdl.dto.Chat
+import kotlinx.coroutines.delay
 import java.io.File
 
 /**
@@ -47,15 +54,22 @@ fun HomeScreen(
     val folders by TelegramManager.folders.collectAsState()
     val selectedFolderId by TelegramManager.selectedFolderId.collectAsState()
 
-    // HomeScreen es la pantalla raíz: aquí el botón "volver" del control
-    // remoto ya no tiene a dónde más regresar, así que en lugar de dejar
-    // que el sistema cierre la app de una, mostramos una confirmación.
-    var showExitDialog by remember { mutableStateOf(false) }
-    val activity = LocalContext.current as? Activity
+    // FocusRequester para forzar el foco en el primer chat al montar la pantalla
+    val firstChatFocusRequester = remember { FocusRequester() }
 
-    // Selector de idioma: cada opción se muestra en su propio idioma
-    // (no se traduce el nombre del idioma) y aplica el cambio con la API
-    // de "idioma por app" de AndroidX, sin reiniciar manualmente la Activity.
+    // El enfoque inicial solo se ejecuta una vez sin robar el foco al cambiar de pestaña
+    LaunchedEffect(Unit) {
+        while (chats.isEmpty()) {
+            delay(100)
+        }
+        try {
+            firstChatFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
+
+    var showExitDialog by remember { mutableStateOf(false) }
+    val activity = LocalActivity.current
+
     var showLanguageDialog by remember { mutableStateOf(false) }
     val languages = remember {
         listOf(
@@ -188,15 +202,46 @@ fun HomeScreen(
 
         // Barra de pestañas para las carpetas (Chat Folders)
         if (folders.isNotEmpty()) {
+            val selectedFolderIndex = folders.indexOfFirst { it.id == selectedFolderId }.coerceAtLeast(0)
+            var focusedFolderIndex by remember { mutableStateOf(selectedFolderIndex) }
+
             TabRow(
-                selectedTabIndex = folders.indexOfFirst { it.id == selectedFolderId }.coerceAtLeast(0),
-                modifier = Modifier.fillMaxWidth()
+                selectedTabIndex = selectedFolderIndex,
+                modifier = Modifier.fillMaxWidth(),
+                indicator = { tabPositions, doesTabRowHaveFocus ->
+                    // Indicador de FOCO: resalta la pestaña por la que vas pasando con el control
+                    tabPositions.getOrNull(focusedFolderIndex)?.let { position ->
+                        TabRowDefaults.PillIndicator(
+                            currentTabPosition = position,
+                            doesTabRowHaveFocus = doesTabRowHaveFocus,
+                            activeColor = Color(0xFF43A047),
+                            inactiveColor = Color.Transparent
+                        )
+                    }
+                    // Indicador de SELECCIÓN: marca la carpeta actualmente elegida
+                    tabPositions.getOrNull(selectedFolderIndex)?.let { position ->
+                        TabRowDefaults.PillIndicator(
+                            currentTabPosition = position,
+                            doesTabRowHaveFocus = doesTabRowHaveFocus,
+                            activeColor = Color(0xFF1B5E20),
+                            inactiveColor = Color(0xFF1B5E20).copy(alpha = 0.6f)
+                        )
+                    }
+                }
             ) {
-                folders.forEach { folder ->
+                folders.forEachIndexed { index, folder ->
+                    val isSelected = folder.id == selectedFolderId
+
                     Tab(
-                        selected = folder.id == selectedFolderId,
-                        onFocus = { TelegramManager.selectFolder(folder.id) },
-                        onClick = { TelegramManager.selectFolder(folder.id) }
+                        selected = isSelected,
+                        onFocus = { focusedFolderIndex = index },
+                        onClick = { TelegramManager.selectFolder(folder.id) },
+                        colors = TabDefaults.pillIndicatorTabColors(
+                            contentColor = Color.White.copy(alpha = 0.7f),
+                            selectedContentColor = Color.White,
+                            focusedContentColor = Color.White,
+                            focusedSelectedContentColor = Color.White
+                        )
                     ) {
                         Text(
                             text = folder.title,
@@ -223,13 +268,17 @@ fun HomeScreen(
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
+                columns = GridCells.Fixed(5),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(chats, key = { it.id }) { chat ->
-                    ChatCard(chat = chat, onClick = { onChatClick(chat.id) })
+                itemsIndexed(chats, key = { _, chat -> chat.id }) { index, chat ->
+                    ChatCard(
+                        chat = chat,
+                        onClick = { onChatClick(chat.id) },
+                        modifier = if (index == 0) Modifier.focusRequester(firstChatFocusRequester) else Modifier
+                    )
                 }
             }
         }
@@ -237,13 +286,16 @@ fun HomeScreen(
 }
 
 @Composable
-private fun ChatCard(chat: Chat, onClick: () -> Unit) {
+private fun ChatCard(
+    chat: Chat,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val photoFile = chat.photo?.small
     var localPath by remember(photoFile?.id, photoFile?.local?.path) {
         mutableStateOf(photoFile?.local?.path ?: "")
     }
 
-    // Controla si este card tiene el foco (navegación con el D-pad del control).
     var isFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(photoFile?.id) {
@@ -255,7 +307,7 @@ private fun ChatCard(chat: Chat, onClick: () -> Unit) {
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick() },
@@ -264,7 +316,7 @@ private fun ChatCard(chat: Chat, onClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
+                .aspectRatio(7f / 7f)
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .border(
@@ -282,10 +334,11 @@ private fun ChatCard(chat: Chat, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop
                 )
             } else {
-                Text(
-                    text = chat.title.take(1).uppercase(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.canal_grupo),
+                    contentDescription = chat.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             }
         }

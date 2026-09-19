@@ -18,6 +18,9 @@
     <string name="video_no_name">無題の動画</string>
     <string name="video_title_fallback">動画</string>
     <string name="btn_back_home">← ホームに戻る</string>
+    <string name="image_thumbnail_desc">画像のサムネイル</string>
+    <string name="gif_thumbnail_desc">GIFのサムネイル</string>
+    <string name="close_desc">閉じる</string>
 
     <string name="storage_title">ストレージ</string>
     <string name="btn_back">← 戻る</string>

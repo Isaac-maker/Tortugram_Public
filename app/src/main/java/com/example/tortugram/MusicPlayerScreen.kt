@@ -6,42 +6,60 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import dev.g000sha256.tdl.dto.File
 import kotlinx.coroutines.delay
+import java.io.File as JavaFile
+
+/**
+ * Reproductor de música a pantalla completa. Calcado de VideoPlayerScreen.kt
+ * (mismo manejo de foco/teclas del control remoto de Fire TV, ya con el fix
+ * de foco aplicado) pero mostrando la portada del álbum en vez del video.
+ *
+ * Usa AudioPlayer.kt (mismo StreamingServer que VideoPlayer.kt, pero sin
+ * PlayerView y con el mimeType real del audio) en vez de VideoPlayer, que
+ * forzaba MimeTypes.VIDEO_MP4 y rompía cualquier audio que no fuera mp4.
+ * isaac-maker 2026
+ */
 
 @Composable
-fun VideoPlayerScreen(
+fun MusicPlayerScreen(
     file: File,
     title: String,
+    performer: String = "",
+    coverFile: File? = null,
+    // mimeType real del audio (audio.mimeType en TDLib). Se lo pasamos a
+    // AudioPlayer para que ExoPlayer no intente decodificarlo como mp4.
+    mimeType: String? = null,
     onBack: () -> Unit,
     onPrevious: (() -> Unit)? = null,
     onNext: (() -> Unit)? = null
@@ -54,7 +72,18 @@ fun VideoPlayerScreen(
     val rootFocusRequester = remember { FocusRequester() }
     val blueThemeColor = Color(0xFF2196F3)
 
-    // 1. Manejo del botón Volver de Android/Fire TV
+    var coverLocalPath by remember(coverFile?.id) {
+        mutableStateOf(coverFile?.local?.path ?: "")
+    }
+
+    LaunchedEffect(coverFile?.id) {
+        if (coverLocalPath.isEmpty() && coverFile != null) {
+            TelegramManager.downloadFile(coverFile.id) { path ->
+                coverLocalPath = path
+            }
+        }
+    }
+
     BackHandler {
         if (controlsVisible) {
             controlsVisible = false
@@ -63,19 +92,20 @@ fun VideoPlayerScreen(
         }
     }
 
-    // Solicitamos foco al botón central cada vez que se muestran los controles
     LaunchedEffect(controlsVisible) {
         if (controlsVisible) {
             playButtonFocusRequester.requestFocus()
         } else {
-            // Sin esto, al ocultarse el botón de play pierde el foco y nadie
-            // lo recupera, así que las teclas del control remoto (play/pause,
-            // forward, rewind) dejan de llegar al onKeyEvent del Box raíz.
+            // Mismo fix que en VideoPlayerScreen: si nadie queda enfocado al
+            // ocultar los controles, las teclas del control remoto dejan de
+            // llegar al onKeyEvent del Box raíz.
             rootFocusRequester.requestFocus()
         }
     }
 
-    // Auto-ocultar controles tras 3.5 segundos de inactividad
+    // A diferencia del video, en música normalmente queremos que los
+    // controles se queden visibles (es lo que se está mirando). Se ocultan
+    // igual tras inactividad para dejar ver la portada completa.
     LaunchedEffect(controlsVisible, state.isPlaying, userActivityTrigger) {
         if (controlsVisible && state.isPlaying) {
             delay(3500)
@@ -116,6 +146,16 @@ fun VideoPlayerScreen(
                             showControls()
                             true
                         }
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            showControls()
+                            onNext?.invoke()
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            showControls()
+                            onPrevious?.invoke()
+                            true
+                        }
                         KeyEvent.KEYCODE_DPAD_CENTER,
                         KeyEvent.KEYCODE_ENTER,
                         KeyEvent.KEYCODE_DPAD_UP,
@@ -135,16 +175,34 @@ fun VideoPlayerScreen(
                 } else false
             }
     ) {
-        /* Capa de video */
-        key(file.id) {
-            VideoPlayer(
-                file = file,
-                state = state,
-                modifier = Modifier.fillMaxSize()
+        /* Fondo: portada difuminada a pantalla completa */
+        if (coverLocalPath.isNotEmpty() && JavaFile(coverLocalPath).exists()) {
+            AsyncImage(
+                model = JavaFile(coverLocalPath),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(40.dp),
+                contentScale = ContentScale.Crop
+            )
+            // Oscurece la portada difuminada para que el texto/controles resalten
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f))
             )
         }
 
-        // 2. Capa clickeable transparente cuando los controles están ocultos
+        /* Motor de audio: streaming real, sin superficie de video */
+        key(file.id) {
+            AudioPlayer(
+                file = file,
+                state = state,
+                mimeType = mimeType
+            )
+        }
+
+        // Capa clickeable transparente cuando los controles están ocultos
         if (!controlsVisible) {
             Box(
                 modifier = Modifier
@@ -158,7 +216,60 @@ fun VideoPlayerScreen(
             )
         }
 
-        /* Capa de Overlays */
+        /* Portada centrada + título/intérprete */
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(260.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF1C1C1E)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (coverLocalPath.isNotEmpty() && JavaFile(coverLocalPath).exists()) {
+                    AsyncImage(
+                        model = JavaFile(coverLocalPath),
+                        contentDescription = title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.size(72.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = title,
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+
+            if (performer.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = performer,
+                    color = Color.White.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        /* Overlay de controles (barra superior de cierre + barra inferior) */
         AnimatedVisibility(
             visible = controlsVisible,
             enter = fadeIn(),
@@ -166,7 +277,6 @@ fun VideoPlayerScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
 
-                /* Barra superior */
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -180,22 +290,8 @@ fun VideoPlayerScreen(
                         contentDescription = "Cerrar",
                         activeColor = blueThemeColor
                     )
-
-                    if (title.isNotBlank()) {
-                        Text(
-                            text = title,
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp)
-                                .weight(1f)
-                        )
-                    }
                 }
 
-                /* Barra inferior */
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -234,19 +330,17 @@ fun VideoPlayerScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Anterior
                         TvIconButton(
                             onClick = {
                                 showControls()
                                 onPrevious?.invoke()
                             },
                             icon = Icons.Default.SkipPrevious,
-                            contentDescription = "Video anterior",
+                            contentDescription = "Canción anterior",
                             enabled = onPrevious != null,
                             activeColor = blueThemeColor
                         )
 
-                        // Retroceder 10s
                         TvIconButton(
                             onClick = {
                                 showControls()
@@ -257,7 +351,6 @@ fun VideoPlayerScreen(
                             activeColor = blueThemeColor
                         )
 
-                        // Play/Pausa
                         TvIconButton(
                             onClick = {
                                 showControls()
@@ -270,18 +363,6 @@ fun VideoPlayerScreen(
                             iconSize = 36.dp
                         )
 
-                        // Replay
-                        TvIconButton(
-                            onClick = {
-                                showControls()
-                                state.seekTo(0)
-                            },
-                            icon = Icons.Default.Replay,
-                            contentDescription = "Reiniciar video",
-                            activeColor = blueThemeColor
-                        )
-
-                        // Avanzar 10s
                         TvIconButton(
                             onClick = {
                                 showControls()
@@ -292,14 +373,13 @@ fun VideoPlayerScreen(
                             activeColor = blueThemeColor
                         )
 
-                        // Siguiente
                         TvIconButton(
                             onClick = {
                                 showControls()
                                 onNext?.invoke()
                             },
                             icon = Icons.Default.SkipNext,
-                            contentDescription = "Siguiente video",
+                            contentDescription = "Siguiente canción",
                             enabled = onNext != null,
                             activeColor = blueThemeColor
                         )
@@ -330,48 +410,5 @@ fun VideoPlayerScreen(
                 modifier = Modifier.align(Alignment.Center)
             )
         }
-    }
-}
-
-@Composable
-fun TvIconButton(
-    onClick: () -> Unit,
-    icon: ImageVector,
-    contentDescription: String,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    activeColor: Color = Color(0xFF2196F3),
-    iconSize: Dp = 24.dp
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-
-    Box(
-        modifier = modifier
-            .padding(4.dp)
-            .size(48.dp)
-            .background(
-                color = if (isFocused) activeColor.copy(alpha = 0.2f) else Color.Transparent,
-                shape = CircleShape
-            )
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) activeColor else Color.Transparent,
-                shape = CircleShape
-            )
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (!enabled) Color.Gray else if (isFocused) activeColor else Color.White,
-            modifier = Modifier.size(iconSize)
-        )
     }
 }

@@ -18,6 +18,9 @@
     <string name="video_no_name">未命名视频</string>
     <string name="video_title_fallback">视频</string>
     <string name="btn_back_home">← 返回主页</string>
+    <string name="image_thumbnail_desc">图片缩略图</string>
+    <string name="gif_thumbnail_desc">GIF缩略图</string>
+    <string name="close_desc">关闭</string>
 
     <string name="storage_title">存储</string>
     <string name="btn_back">← 返回</string>

@@ -18,6 +18,9 @@
     <string name="video_no_name">Vídeo sem nome</string>
     <string name="video_title_fallback">Vídeo</string>
     <string name="btn_back_home">← Voltar ao Início</string>
+    <string name="image_thumbnail_desc">Miniatura da imagem</string>
+    <string name="gif_thumbnail_desc">Miniatura do GIF</string>
+    <string name="close_desc">Fechar</string>
 
     <string name="storage_title">Armazenamento</string>
     <string name="btn_back">← Voltar</string>

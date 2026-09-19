@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,8 +35,8 @@ object TelegramManager {
 
     private const val TAG = "TelegramManager"
 
-    private const val API_ID =  0000000000
-    private const val API_HASH = "api"
+    private const val API_ID =  00000
+    private const val API_HASH = "6tem3493msj......"
 
     /*
      * Tamaño de página del historial.
@@ -43,7 +44,12 @@ object TelegramManager {
      * 50 es suficientemente grande para encontrar bastantes vídeos
      * sin intentar cargar miles de mensajes de golpe.
      */
-    private const val MESSAGE_PAGE_SIZE = 50
+    private const val MESSAGE_PAGE_SIZE = 100
+
+    // Páginas seguidas sin mensajes nuevos que toleramos antes de dar el
+    // historial por terminado (TDLib a veces responde vacío/parcial mientras
+    // sincroniza el chat por primera vez).
+    private const val MAX_STUCK_PAGES = 3
 
     private var client: TdlClient? = null
     private var dbPath: String = ""
@@ -90,10 +96,24 @@ object TelegramManager {
      * loadingMessages:
      * evita dos llamadas simultáneas al historial.
      */
-    private var currentChatId: Long? = null
-    private var oldestMessageId: Long = 0L
-    private var hasMoreMessages: Boolean = true
-    private var loadingMessages: Boolean = false
+    @Volatile private var currentChatId: Long? = null
+    @Volatile private var oldestMessageId: Long = 0L
+    @Volatile private var hasMoreMessages: Boolean = true
+    @Volatile private var loadingMessages: Boolean = false
+
+    // Se incrementa cada vez que se abre un chat. Cualquier carga en vuelo
+    // que pertenezca a una generación anterior se descarta (evita que el chat
+    // nuevo se quede bloqueado o reciba mensajes del chat anterior).
+    @Volatile private var loadGeneration: Int = 0
+    @Volatile private var stuckPages: Int = 0
+
+    // Observables para la UI: ¿se está cargando? y ¿en qué chat ya se llegó
+    // al inicio del historial? (null = todavía no se ha llegado al final).
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _endReachedChatId = MutableStateFlow<Long?>(null)
+    val endReachedChatId: StateFlow<Long?> = _endReachedChatId.asStateFlow()
 
     fun initClient(context: Context) {
         if (client != null) return
@@ -535,21 +555,22 @@ object TelegramManager {
     /**
      * Inicia/reinicia la carga del historial de un chat.
      *
-     * La primera página se carga inmediatamente.
-     * Las siguientes páginas se solicitan mediante loadMoreMessages().
+     * Siempre arranca de cero: invalida cualquier carga en vuelo (aunque sea
+     * de otro chat) en vez de ignorar la petición, que era lo que dejaba el
+     * chat nuevo sin cargar.
      */
     fun loadMessages(chatId: Long) {
 
-        if (loadingMessages) {
-            return
-        }
+        loadGeneration++
 
         currentChatId = chatId
-
         oldestMessageId = 0L
-
         hasMoreMessages = true
+        stuckPages = 0
+        loadingMessages = false
 
+        _isLoading.value = false
+        _endReachedChatId.value = null
         _messages.value = emptyList()
 
         loadMoreMessages(chatId)
@@ -557,7 +578,6 @@ object TelegramManager {
 
 
     fun loadMoreMessages(chatId: Long? = null) {
-
 
         val targetChatId =
             chatId ?: currentChatId ?: return
@@ -575,6 +595,9 @@ object TelegramManager {
         }
 
         loadingMessages = true
+        _isLoading.value = true
+
+        val generation = loadGeneration
 
         scope.launch(Dispatchers.IO) {
 
@@ -589,6 +612,11 @@ object TelegramManager {
                         onlyLocal = false
                     )
 
+                // El usuario cambió de chat mientras esperábamos: descartar.
+                if (generation != loadGeneration) {
+                    return@launch
+                }
+
                 if (result is TdlResult.Success<*>) {
 
                     val messagesResult =
@@ -600,47 +628,52 @@ object TelegramManager {
                             ?.filterNotNull()
                             ?: emptyList()
 
-                    if (page.isEmpty()) {
+                    val existingIds =
+                        _messages.value
+                            .asSequence()
+                            .map { it.id }
+                            .toHashSet()
 
-                        hasMoreMessages = false
+                    val newMessages =
+                        page.filter {
+                            it.id !in existingIds
+                        }
+
+                    if (newMessages.isNotEmpty()) {
+
+                        stuckPages = 0
+
+                        _messages.value =
+                            _messages.value + newMessages
+
+                        oldestMessageId =
+                            page.minOf { it.id }
 
                     } else {
 
-                        val existingIds =
-                            _messages.value
-                                .asSequence()
-                                .map { it.id }
-                                .toHashSet()
+                        // Página vacía o sin nada nuevo. En TDLib eso NO
+                        // siempre significa "fin": al abrir un chat por
+                        // primera vez suele responder vacío/parcial mientras
+                        // sincroniza. Reintentamos unas veces antes de
+                        // declarar el fin del historial.
+                        stuckPages++
 
-                        val newMessages =
-                            page.filter {
-                                it.id !in existingIds
-                            }
-
-                        if (newMessages.isNotEmpty()) {
-
-                            _messages.value =
-                                _messages.value + newMessages
-                        }
-
-                        val newOldestId =
-                            page.minOfOrNull {
-                                it.id
-                            } ?: 0L
-
-                        if (
-                            newOldestId <= 0L ||
-                            newOldestId == oldestMessageId
-                        ) {
+                        if (stuckPages >= MAX_STUCK_PAGES) {
 
                             hasMoreMessages = false
+                            _endReachedChatId.value = targetChatId
 
                         } else {
 
-                            oldestMessageId =
-                                newOldestId
+                            delay(400)
                         }
                     }
+
+                } else {
+
+                    // Falló la petición (sin red, etc.): espera un poco
+                    // para no reintentar en bucle apretado.
+                    delay(1500)
                 }
 
             } catch (exception: Exception) {
@@ -651,13 +684,18 @@ object TelegramManager {
                     exception
                 )
 
+                delay(1500)
+
             } finally {
 
-                loadingMessages = false
+                // Solo liberamos el candado si seguimos en la misma
+                // generación; si no, el chat nuevo ya tiene el suyo.
+                if (generation == loadGeneration) {
+                    loadingMessages = false
+                    _isLoading.value = false
+                }
             }
         }
-
-
     }
 
     fun hasMoreMessages(): Boolean {

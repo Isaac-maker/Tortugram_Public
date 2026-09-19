@@ -18,6 +18,9 @@
     <string name="video_no_name">Видео без названия</string>
     <string name="video_title_fallback">Видео</string>
     <string name="btn_back_home">← Назад на главную</string>
+    <string name="image_thumbnail_desc">Миниатюра изображения</string>
+    <string name="gif_thumbnail_desc">Миниатюра GIF</string>
+    <string name="close_desc">Закрыть</string>
 
     <string name="storage_title">Хранилище</string>
     <string name="btn_back">← Назад</string>

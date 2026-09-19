@@ -18,6 +18,9 @@
     <string name="video_no_name">Video sin nombre</string>
     <string name="video_title_fallback">Video</string>
     <string name="btn_back_home">← Volver a Home</string>
+    <string name="image_thumbnail_desc">Miniatura de imagen</string>
+    <string name="gif_thumbnail_desc">Miniatura de GIF</string>
+    <string name="close_desc">Cerrar</string>
 
     <string name="storage_title">Almacenamiento</string>
     <string name="btn_back">← Volver</string>
@@ -33,4 +36,5 @@
     <string name="btn_cleaning">Limpiando...</string>
     <string name="btn_clean_files">🗑 Limpiar archivos</string>
     <string name="storage_freed_message">Se liberaron %1$s</string>
+
 </resources>

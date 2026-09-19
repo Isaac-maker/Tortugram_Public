@@ -5,7 +5,9 @@ import android.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +21,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 
 /**
- * Pantalla Login pantalla del QR"
+ * Login screen / QR code screen
  * isaac-maker 2026
  */
 @Composable
@@ -32,22 +34,26 @@ fun LoginScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(24.dp)
+            modifier = Modifier
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = "Tortugram",
-                style = MaterialTheme.typography.headlineLarge
+                style = MaterialTheme.typography.headlineLarge,
+                color = ComposeColor.White
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (qrLink != null) {
                 Text(
-                    text = "Escanea este código QR con Telegram",
-                    style = MaterialTheme.typography.titleMedium
+                    text = "Scan this QR code with Telegram",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ComposeColor.White
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 val qrBitmap = remember(qrLink) {
                     generateQrBitmap(qrLink, size = 600)
@@ -55,32 +61,59 @@ fun LoginScreen(
 
                 Box(
                     modifier = Modifier
-                        .size(280.dp)
+                        .size(200.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(ComposeColor.White)
-                        .padding(16.dp),
+                        .padding(12.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
                         bitmap = qrBitmap.asImageBitmap(),
-                        contentDescription = "Código QR de inicio de sesión",
+                        contentDescription = "Login QR code",
                         modifier = Modifier.fillMaxSize()
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Abre Telegram > Ajustes > Dispositivos > Vincular dispositivo",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ComposeColor.White.copy(alpha = 0.08f))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "This code can only be scanned from inside the Telegram app — your phone or tablet's regular camera will not work.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ComposeColor.White
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "1. Open Telegram on your phone or tablet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ComposeColor.White
+                    )
+                    Text(
+                        text = "2. Go to Settings > Devices > Link Desktop Device",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ComposeColor.White
+                    )
+                    Text(
+                        text = "3. Point the camera that opens inside Telegram at this QR code",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ComposeColor.White
+                    )
+                }
             } else {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = ComposeColor.White)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Conectando con Telegram...",
-                    style = MaterialTheme.typography.bodyMedium
+                    text = "Connecting to Telegram...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ComposeColor.White
                 )
             }
         }
@@ -104,16 +137,17 @@ fun PasswordScreen() {
                 .padding(24.dp)
         ) {
             Text(
-                text = "Verificación en dos pasos",
-                style = MaterialTheme.typography.headlineMedium
+                text = "Two-Factor Verification",
+                style = MaterialTheme.typography.headlineMedium,
+                color = ComposeColor.White
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Ingresa tu contraseña de Telegram",
+                text = "Enter your Telegram password",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = ComposeColor.White
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -121,7 +155,7 @@ fun PasswordScreen() {
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Contraseña") },
+                label = { Text("Password") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
@@ -145,7 +179,7 @@ fun PasswordScreen() {
                     TelegramManager.checkPassword(password) { success ->
                         isLoading = false
                         if (!success) {
-                            errorMessage = "Contraseña incorrecta"
+                            errorMessage = "Incorrect password"
                         }
                     }
                 },
@@ -159,7 +193,7 @@ fun PasswordScreen() {
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Ingresar")
+                    Text("Log In")
                 }
             }
         }
