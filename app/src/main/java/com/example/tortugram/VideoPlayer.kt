@@ -31,11 +31,12 @@ import dev.g000sha256.tdl.dto.File
 import kotlinx.coroutines.delay
 
 /**
- * Video Player"
+ * Reproductor de video con estado compartido.
+ *
  * isaac-maker 2026
  */
 
-/* ─────────────── Estado compartido del reproductor ─────────────── */
+// Estado compartido del reproductor.
 
 @Stable
 class VideoPlayerState {
@@ -78,7 +79,7 @@ class VideoPlayerState {
 @Composable
 fun rememberVideoPlayerState(): VideoPlayerState = remember { VideoPlayerState() }
 
-/* ─────────────── Reproductor puro (solo video) ─────────────── */
+// Reproductor de video.
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -86,9 +87,7 @@ fun VideoPlayer(
     file: File,
     state: VideoPlayerState,
     modifier: Modifier = Modifier,
-    // false = comportamiento de siempre (VideoPlayerScreen). true = se usa
-    // para los "gifs" (que en realidad son videos mp4 cortos y silenciosos),
-    // para que se repitan solos como un gif de verdad.
+    // Si es true, el video se repite en bucle (uso en GIFs).
     loop: Boolean = false
 ) {
     val context = LocalContext.current
@@ -125,7 +124,7 @@ fun VideoPlayer(
 
             override fun onIsPlayingChanged(playing: Boolean) {
                 state.isPlaying = playing
-                // Mantiene la pantalla encendida solo mientras se reproduce activamente
+                // Mantiene la pantalla encendida solo durante la reproducción.
                 if (playing) {
                     activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
@@ -143,7 +142,7 @@ fun VideoPlayer(
             exoPlayer.removeListener(listener)
             exoPlayer.release()
             state.exoPlayer = null
-            // Libera la flag por seguridad al salir del reproductor
+            // Libera el flag al salir del reproductor.
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
@@ -173,7 +172,7 @@ fun VideoPlayer(
     }
 }
 
-/* ─────────────── Helper ─────────────── */
+// Utilidades.
 
 internal fun formatTime(millis: Long): String {
     val totalSeconds = millis / 1000

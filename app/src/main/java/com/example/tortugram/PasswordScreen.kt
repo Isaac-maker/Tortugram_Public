@@ -26,7 +26,8 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Text
 
 /**
- * "Inside the 2FA verifier" screen
+ * Pantalla de verificación en dos pasos (2FA).
+ *
  * isaac-maker 2026
  */
 

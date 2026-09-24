@@ -20,8 +20,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
-
- * Manejo de Telegram.
+ * Gestión de Telegram mediante TDLib: autenticación, chats, mensajes, búsqueda, descargas,
+ * almacenamiento y reportes.
  *
  * isaac-maker 2026
  */
@@ -30,25 +30,31 @@ data class ChatFolderItem(
     val title: String
 )
 
+/**
+ * Resultado del buscador global, separado en tres fuentes para mostrarlas como secciones.
+ */
+data class GlobalSearchResults(
+    val localChats: List<Chat> = emptyList(),
+    val contacts: List<User> = emptyList(),
+    val globalChats: List<Chat> = emptyList()
+) {
+    val isEmpty: Boolean
+        get() = localChats.isEmpty() && contacts.isEmpty() && globalChats.isEmpty()
+}
+
 object TelegramManager {
 
 
     private const val TAG = "TelegramManager"
 
-    private const val API_ID =  00000
-    private const val API_HASH = "6tem3493msj......"
+    private const val API_ID =  00000000
+    private const val API_HASH = "5cabcdewfghtikills........"
 
-    /*
-     * Tamaño de página del historial.
-     *
-     * 50 es suficientemente grande para encontrar bastantes vídeos
-     * sin intentar cargar miles de mensajes de golpe.
-     */
+    // Tamaño de página del historial.
     private const val MESSAGE_PAGE_SIZE = 100
 
-    // Páginas seguidas sin mensajes nuevos que toleramos antes de dar el
-    // historial por terminado (TDLib a veces responde vacío/parcial mientras
-    // sincroniza el chat por primera vez).
+    // Páginas consecutivas sin mensajes nuevos toleradas antes de dar por terminado el
+    // historial.
     private const val MAX_STUCK_PAGES = 3
 
     private var client: TdlClient? = null
@@ -65,12 +71,16 @@ object TelegramManager {
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
+    // Usuario con sesión iniciada (solo lectura desde la UI).
+    private val _currentUser = MutableStateFlow<User?>(null)
+    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+
     private val _chats = MutableStateFlow<List<Chat>>(emptyList())
     val chats: StateFlow<List<Chat>> = _chats.asStateFlow()
 
     private val _folders =
         MutableStateFlow<List<ChatFolderItem>>(
-            listOf(ChatFolderItem(0, "Todos"))
+            listOf(ChatFolderItem(0, "All"))
         )
 
     val folders: StateFlow<List<ChatFolderItem>> = _folders.asStateFlow()
@@ -81,39 +91,35 @@ object TelegramManager {
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages.asStateFlow()
 
-    /*
-     * Estado interno de paginación.
-     *
-     * currentChatId:
-     * identifica el chat que estamos cargando.
-     *
-     * oldestMessageId:
-     * ID del mensaje más antiguo que ya tenemos.
-     *
-     * hasMoreMessages:
-     * indica si todavía debemos pedir páginas anteriores.
-     *
-     * loadingMessages:
-     * evita dos llamadas simultáneas al historial.
-     */
+    // Estado de paginación: chat actual, mensaje más antiguo cargado, existencia de más
+    // mensajes y bloqueo de cargas simultáneas.
     @Volatile private var currentChatId: Long? = null
     @Volatile private var oldestMessageId: Long = 0L
     @Volatile private var hasMoreMessages: Boolean = true
     @Volatile private var loadingMessages: Boolean = false
 
-    // Se incrementa cada vez que se abre un chat. Cualquier carga en vuelo
-    // que pertenezca a una generación anterior se descarta (evita que el chat
-    // nuevo se quede bloqueado o reciba mensajes del chat anterior).
+    // Se incrementa al abrir un chat; las cargas de generaciones anteriores se descartan.
     @Volatile private var loadGeneration: Int = 0
     @Volatile private var stuckPages: Int = 0
 
-    // Observables para la UI: ¿se está cargando? y ¿en qué chat ya se llegó
-    // al inicio del historial? (null = todavía no se ha llegado al final).
+    // Observables de la UI: estado de carga y chat cuyo historial llegó al inicio.
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _endReachedChatId = MutableStateFlow<Long?>(null)
     val endReachedChatId: StateFlow<Long?> = _endReachedChatId.asStateFlow()
+
+    // Buscador global (HomeScreen); solo lectura.
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchResults = MutableStateFlow(GlobalSearchResults())
+    val searchResults: StateFlow<GlobalSearchResults> = _searchResults.asStateFlow()
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+    private var searchJob: Job? = null
 
     fun initClient(context: Context) {
         if (client != null) return
@@ -194,7 +200,7 @@ object TelegramManager {
 
                         val folderList =
                             mutableListOf(
-                                ChatFolderItem(0, "Todos")
+                                ChatFolderItem(0, "All")
                             )
 
                         update.chatFolders.forEach { folderInfo ->
@@ -247,7 +253,7 @@ object TelegramManager {
 
                     apiHash = API_HASH,
 
-                    systemLanguageCode = "es",
+                    systemLanguageCode = "en",
 
                     deviceModel = Build.MODEL,
 
@@ -340,6 +346,18 @@ object TelegramManager {
 
                 _isLoggedIn.value = true
 
+                // Reasigna el idioma de la cuenta, ya que systemLanguageCode solo aplica en el
+                // primer inicio de sesión.
+                scope.launch(Dispatchers.IO) {
+                    val res = client?.setOption(
+                        name = "language_pack_id",
+                        value = OptionValueString(value = "en")
+                    )
+                    Log.d(TAG, "setOption(language_pack_id=en) -> $res")
+                }
+
+                loadCurrentUser()
+
                 loadChats()
             }
 
@@ -352,10 +370,27 @@ object TelegramManager {
 
                 _qrCodeLink.value = null
 
+                _currentUser.value = null
+
                 client = null
             }
 
             else -> {}
+        }
+    }
+
+    /**
+     * Obtiene nombre y foto del usuario con sesión iniciada; se invoca desde handleAuthState.
+     */
+    private fun loadCurrentUser() {
+
+        scope.launch(Dispatchers.IO) {
+
+            val res = client?.getMe()
+
+            if (res is TdlResult.Success<*>) {
+                _currentUser.value = res.result as? User
+            }
         }
     }
 
@@ -430,16 +465,12 @@ object TelegramManager {
                 }
             }
 
-            // Cada archivo descargado puede acercarnos al límite de
-            // almacenamiento. Se lo avisamos a StorageManager para que
-            // decida si limpia o solo notifica. Esto NUNCA toca la
-            // base de datos ni la sesión, solo archivos descargados.
+            // Notifica a StorageManager para aplicar el límite de almacenamiento.
             StorageManager.onFileDownloaded()
         }
     }
 
-    // Job de la carga de chats en curso, para poder cancelarla si el
-    // usuario cambia de carpeta antes de que termine.
+    // Job de la carga de chats en curso; permite cancelarla al cambiar de carpeta.
     private var loadChatsJob: Job? = null
 
     fun selectFolder(folderId: Int) {
@@ -472,13 +503,8 @@ object TelegramManager {
 
             while (true) {
 
-                // IMPORTANTE: primero leemos lo que TDLib ya tiene en
-                // caché para esta lista con getChats(). loadChats() se
-                // usa solo para pedirle a TDLib que siga trayendo más
-                // chats; que loadChats() falle (p. ej. TDLib respondiendo
-                // que ya no quedan más por cargar) es un comportamiento
-                // NORMAL en TDLib, no un error real, y no debe impedir
-                // que mostremos lo que ya se obtuvo con getChats().
+                // Primero se lee la caché con getChats(); un fallo de loadChats() es normal y
+                // no impide mostrar lo obtenido.
                 val chatsResult =
                     client?.getChats(
                         chatList = targetChatList,
@@ -519,9 +545,7 @@ object TelegramManager {
                             .awaitAll()
                             .filterNotNull()
 
-                    // Si el usuario ya cambió de carpeta mientras
-                    // esperábamos esta respuesta, descartamos el
-                    // resultado para no pisar la carpeta nueva.
+                    // Descarta el resultado si la carpeta cambió.
                     if (_selectedFolderId.value != folderId) {
                         return@launch
                     }
@@ -529,8 +553,7 @@ object TelegramManager {
                     _chats.value = fullChats
 
                     if (ids.size == lastLoadedCount) {
-                        // No llegaron chats nuevos respecto a la
-                        // vuelta anterior: ya tenemos todo.
+                        // Sin chats nuevos: la carga está completa.
                         break
                     }
 
@@ -544,8 +567,7 @@ object TelegramManager {
                     )
 
                 if (loadRes !is TdlResult.Success<*>) {
-                    // Fin normal: TDLib indica que no hay más chats
-                    // que cargar en esta lista.
+                    // Fin normal de la lista de chats.
                     break
                 }
             }
@@ -553,11 +575,8 @@ object TelegramManager {
     }
 
     /**
-     * Inicia/reinicia la carga del historial de un chat.
-     *
-     * Siempre arranca de cero: invalida cualquier carga en vuelo (aunque sea
-     * de otro chat) en vez de ignorar la petición, que era lo que dejaba el
-     * chat nuevo sin cargar.
+     * Inicia o reinicia la carga del historial de un chat, invalidando cualquier carga en
+     * curso.
      */
     fun loadMessages(chatId: Long) {
 
@@ -612,7 +631,7 @@ object TelegramManager {
                         onlyLocal = false
                     )
 
-                // El usuario cambió de chat mientras esperábamos: descartar.
+                // Descarta la respuesta si el chat cambió.
                 if (generation != loadGeneration) {
                     return@launch
                 }
@@ -651,11 +670,8 @@ object TelegramManager {
 
                     } else {
 
-                        // Página vacía o sin nada nuevo. En TDLib eso NO
-                        // siempre significa "fin": al abrir un chat por
-                        // primera vez suele responder vacío/parcial mientras
-                        // sincroniza. Reintentamos unas veces antes de
-                        // declarar el fin del historial.
+                        // Una página vacía no siempre indica el fin del historial; se reintenta
+                        // varias veces.
                         stuckPages++
 
                         if (stuckPages >= MAX_STUCK_PAGES) {
@@ -671,8 +687,7 @@ object TelegramManager {
 
                 } else {
 
-                    // Falló la petición (sin red, etc.): espera un poco
-                    // para no reintentar en bucle apretado.
+                    // Espera antes de reintentar tras un fallo.
                     delay(1500)
                 }
 
@@ -688,8 +703,7 @@ object TelegramManager {
 
             } finally {
 
-                // Solo liberamos el candado si seguimos en la misma
-                // generación; si no, el chat nuevo ya tiene el suyo.
+                // Libera el bloqueo solo si la generación sigue vigente.
                 if (generation == loadGeneration) {
                     loadingMessages = false
                     _isLoading.value = false
@@ -704,6 +718,170 @@ object TelegramManager {
 
     fun isLoadingMessages(): Boolean {
         return loadingMessages
+    }
+
+    // Buscador global: combina en paralelo searchChats y searchContacts (locales) y
+    // searchPublicChats (servidores de Telegram), sin modificar _chats ni _messages. Las firmas
+    // dependen de la versión de tdl-coroutines.
+
+    private const val SEARCH_DEBOUNCE_MS = 300L
+    private const val SEARCH_LOCAL_LIMIT = 30
+    private const val SEARCH_CONTACTS_LIMIT = 30
+
+    fun searchGlobal(query: String) {
+
+        _searchQuery.value = query
+
+        searchJob?.cancel()
+
+        if (query.isBlank()) {
+            _searchResults.value = GlobalSearchResults()
+            _isSearching.value = false
+            return
+        }
+
+        searchJob = scope.launch(Dispatchers.IO) {
+
+            // Debounce para no consultar a TDLib por cada letra.
+            delay(SEARCH_DEBOUNCE_MS)
+
+            _isSearching.value = true
+
+            try {
+
+                val localChatsDeferred = async {
+                    val res = client?.searchChats(
+                        query = query,
+                        limit = SEARCH_LOCAL_LIMIT
+                    )
+                    val chatsObj =
+                        (res as? TdlResult.Success<*>)?.result as? Chats
+
+                    val ids = chatsObj?.chatIds ?: LongArray(0)
+
+                    ids.map { id ->
+                        async {
+                            val c = client?.getChat(chatId = id)
+                            if (c is TdlResult.Success<*>) {
+                                c.result as? Chat
+                            } else {
+                                null
+                            }
+                        }
+                    }.awaitAll().filterNotNull()
+                }
+
+                val contactsDeferred = async {
+                    val res = client?.searchContacts(
+                        query = query,
+                        limit = SEARCH_CONTACTS_LIMIT
+                    )
+                    val usersObj =
+                        (res as? TdlResult.Success<*>)?.result as? Users
+
+                    val ids = usersObj?.userIds ?: LongArray(0)
+
+                    ids.map { id ->
+                        async {
+                            val u = client?.getUser(userId = id)
+                            if (u is TdlResult.Success<*>) {
+                                u.result as? User
+                            } else {
+                                null
+                            }
+                        }
+                    }.awaitAll().filterNotNull()
+                }
+
+                val globalChatsDeferred = async {
+                    val res = client?.searchPublicChats(query = query)
+                    val chatsObj =
+                        (res as? TdlResult.Success<*>)?.result as? Chats
+
+                    val ids = chatsObj?.chatIds ?: LongArray(0)
+
+                    ids.map { id ->
+                        async {
+                            val c = client?.getChat(chatId = id)
+                            if (c is TdlResult.Success<*>) {
+                                c.result as? Chat
+                            } else {
+                                null
+                            }
+                        }
+                    }.awaitAll().filterNotNull()
+                }
+
+                val localChats = localChatsDeferred.await()
+                val contacts = contactsDeferred.await()
+                val globalChats = globalChatsDeferred.await()
+
+                // Descarta la respuesta si la consulta cambió.
+                if (_searchQuery.value != query) {
+                    return@launch
+                }
+
+                // Excluye de «Global» los chats ya listados en «Chats».
+                val localIds = localChats.map { it.id }.toHashSet()
+                val dedupedGlobalChats =
+                    globalChats.filter { it.id !in localIds }
+
+                // Excluye de «Contactos» a quienes ya tienen chat en «Chats».
+                val localPrivateUserIds = localChats
+                    .mapNotNull { (it.type as? ChatTypePrivate)?.userId }
+                    .toHashSet()
+                val dedupedContacts =
+                    contacts.filter { it.id !in localPrivateUserIds }
+
+                _searchResults.value = GlobalSearchResults(
+                    localChats = localChats,
+                    contacts = dedupedContacts,
+                    globalChats = dedupedGlobalChats
+                )
+
+            } catch (exception: Exception) {
+
+                Log.e(
+                    TAG,
+                    "Error en búsqueda global: \"$query\"",
+                    exception
+                )
+
+            } finally {
+
+                if (_searchQuery.value == query) {
+                    _isSearching.value = false
+                }
+            }
+        }
+    }
+
+    fun clearSearch() {
+        searchJob?.cancel()
+        _searchQuery.value = ""
+        _searchResults.value = GlobalSearchResults()
+        _isSearching.value = false
+    }
+
+    /**
+     * Abre o crea el chat privado con un contacto y devuelve su chatId.
+     */
+    fun openPrivateChat(userId: Long, onResult: (Long?) -> Unit) {
+
+        scope.launch(Dispatchers.IO) {
+
+            val res = client?.createPrivateChat(
+                userId = userId,
+                force = true
+            )
+
+            val chat =
+                (res as? TdlResult.Success<*>)?.result as? Chat
+
+            withContext(Dispatchers.Main) {
+                onResult(chat?.id)
+            }
+        }
     }
 
 
@@ -777,9 +955,8 @@ object TelegramManager {
                 synchronous = true
             )
 
-        // El streaming de video (downloadRange) es la fuente principal
-        // de crecimiento del almacenamiento, así que también avisamos
-        // aquí a StorageManager.
+        // El streaming es la principal fuente de crecimiento del almacenamiento; se notifica a
+        // StorageManager.
         StorageManager.onFileDownloaded()
 
         return if (
@@ -794,20 +971,12 @@ object TelegramManager {
         }
     }
 
-    // ------------------------------------------------------------------
-    // Almacenamiento (StorageScreen / StorageManager)
-    //
-    // Estas dos funciones son las ÚNICAS que tocan el tema de espacio en
-    // disco, y usan las funciones propias de TDLib para eso (nunca
-    // File.deleteRecursively() a mano). No modifican databaseDirectory,
-    // databaseEncryptionKey ni el estado de AuthorizationState, así que
-    // la sesión nunca se ve afectada.
-    // ------------------------------------------------------------------
+    // Almacenamiento (StorageScreen / StorageManager): usa exclusivamente funciones de TDLib,
+    // sin afectar la base de datos ni la sesión.
 
     /**
-     * Estadísticas rápidas de espacio usado por TDLib.
-     * filesSize = archivos descargados (fotos, videos, miniaturas...).
-     * databaseSize = base de datos de TDLib (mensajes, sesión, etc).
+     * Estadísticas de espacio de TDLib: archivos descargados (filesSize) y base de datos
+     * (databaseSize).
      */
     suspend fun getStorageStatisticsFast(): StorageInfo {
 
@@ -825,16 +994,9 @@ object TelegramManager {
     }
 
     /**
-     * Le pide a TDLib que recorte los archivos descargados hasta que el
-     * total pese como máximo [maxTotalSizeBytes] (0 = borrar todo lo
-     * descargable). TDLib decide qué borrar (los más viejos primero) y
-     * jamás toca la base de datos ni la autenticación.
-     *
-     * NOTA: si el nombre/orden de los parámetros de optimizeStorage no
-     * coincide exactamente con esta versión de tdl-coroutines, el
-     * autocompletado de Android Studio te va a mostrar la firma real;
-     * es la única línea de todo esto que depende de la versión exacta
-     * de la librería.
+     * Solicita a TDLib recortar los archivos descargados hasta [maxTotalSizeBytes] (0 = todo lo
+     * descargable). No afecta la base de datos ni la autenticación. La firma depende de la
+     * versión de tdl-coroutines.
      */
     suspend fun optimizeStorage(maxTotalSizeBytes: Long): Long {
 
@@ -855,6 +1017,116 @@ object TelegramManager {
                 ?.result as? dev.g000sha256.tdl.dto.StorageStatistics
 
         return stats?.size ?: 0L
+    }
+
+    // Cierre de sesión real en el servidor de Telegram: limpia el estado en memoria y reinicia
+    // el cliente TDLib para el próximo login por QR.
+    fun logOut(context: Context, onComplete: () -> Unit) {
+
+        scope.launch(Dispatchers.IO) {
+
+            client?.logOut()
+
+            // Espera la confirmación del cierre (AuthorizationStateClosed).
+            var waited = 0
+            while (client != null && waited < 5000) {
+                delay(100)
+                waited += 100
+            }
+
+            _currentUser.value = null
+            _chats.value = emptyList()
+            _folders.value = listOf(ChatFolderItem(0, "All"))
+            _selectedFolderId.value = 0
+            _messages.value = emptyList()
+            _searchQuery.value = ""
+            _searchResults.value = GlobalSearchResults()
+            _isSearching.value = false
+            currentChatId = null
+            oldestMessageId = 0L
+            hasMoreMessages = true
+            loadGeneration++
+
+            withContext(Dispatchers.Main) {
+                // Inicia un cliente nuevo para el próximo login por QR.
+                initClient(context)
+                onComplete()
+            }
+        }
+    }
+
+    // Reporte de chats a Telegram (ReportScreen): reportChat opera por pasos con un optionId y
+    // puede devolver Ok, un submenú (OptionRequired) o solicitar texto (TextRequired). Los
+    // tipos de los parámetros dependen de la versión de la librería.
+
+    data class ReportOptionItem(
+        val id: ByteArray,
+        val text: String
+    )
+
+    sealed class ReportStepResult {
+        object Ok : ReportStepResult()
+        data class ChooseOption(val title: String, val options: List<ReportOptionItem>) : ReportStepResult()
+        data class NeedsText(val optionId: ByteArray, val isOptional: Boolean) : ReportStepResult()
+        data class Failed(val message: String? = null) : ReportStepResult()
+    }
+
+    /**
+     * Un paso del reporte: se inicia con optionId vacío y se repite con la opción elegida
+     * (ChooseOption) o el texto pedido (NeedsText) hasta obtener Ok.
+     */
+    suspend fun reportChat(
+        chatId: Long,
+        optionId: ByteArray = ByteArray(0),
+        text: String = ""
+    ): ReportStepResult {
+
+        return try {
+
+            val result = client?.reportChat(
+                chatId = chatId,
+                messageIds = LongArray(0),
+                optionId = optionId,
+                text = text
+            )
+
+            Log.d(TAG, "reportChat($chatId) -> $result")
+
+            if (result !is TdlResult.Success<*>) {
+                Log.e(TAG, "reportChat($chatId) falló: $result")
+                return ReportStepResult.Failed(result?.toString())
+            }
+
+            when (val reportResult = result.result as? ReportChatResult) {
+
+                is ReportChatResultOk ->
+                    ReportStepResult.Ok
+
+                is ReportChatResultOptionRequired ->
+                    ReportStepResult.ChooseOption(
+                        title = reportResult.title,
+                        options = reportResult.options.map {
+                            ReportOptionItem(it.id, it.text)
+                        }
+                    )
+
+                is ReportChatResultTextRequired ->
+                    ReportStepResult.NeedsText(
+                        optionId = reportResult.optionId,
+                        isOptional = reportResult.isOptional
+                    )
+
+                else -> {
+                    // Cubre reportChatResultMessagesRequired y tipos nuevos.
+                    Log.e(TAG, "reportChat($chatId): resultado no manejado: $reportResult")
+                    ReportStepResult.Failed(reportResult?.toString())
+                }
+            }
+
+        } catch (exception: Exception) {
+            Log.e(TAG, "reportChat($chatId) lanzó una excepción", exception)
+            ReportStepResult.Failed(exception.message)
+        }
     }
 }
 

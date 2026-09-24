@@ -54,7 +54,7 @@ fun VideoPlayerScreen(
     val rootFocusRequester = remember { FocusRequester() }
     val blueThemeColor = Color(0xFF2196F3)
 
-    // 1. Manejo del botón Volver de Android/Fire TV
+    // Botón Atrás.
     BackHandler {
         if (controlsVisible) {
             controlsVisible = false
@@ -63,19 +63,18 @@ fun VideoPlayerScreen(
         }
     }
 
-    // Solicitamos foco al botón central cada vez que se muestran los controles
+    // Solicita el foco al botón central al mostrar los controles.
     LaunchedEffect(controlsVisible) {
         if (controlsVisible) {
             playButtonFocusRequester.requestFocus()
         } else {
-            // Sin esto, al ocultarse el botón de play pierde el foco y nadie
-            // lo recupera, así que las teclas del control remoto (play/pause,
-            // forward, rewind) dejan de llegar al onKeyEvent del Box raíz.
+            // Evita que las teclas del control remoto dejen de llegar al Box raíz cuando el
+            // botón de reproducción pierde el foco.
             rootFocusRequester.requestFocus()
         }
     }
 
-    // Auto-ocultar controles tras 3.5 segundos de inactividad
+    // Oculta los controles tras 3,5 segundos de inactividad.
     LaunchedEffect(controlsVisible, state.isPlaying, userActivityTrigger) {
         if (controlsVisible && state.isPlaying) {
             delay(3500)
@@ -135,7 +134,7 @@ fun VideoPlayerScreen(
                 } else false
             }
     ) {
-        /* Capa de video */
+        // Capa de video.
         key(file.id) {
             VideoPlayer(
                 file = file,
@@ -144,7 +143,7 @@ fun VideoPlayerScreen(
             )
         }
 
-        // 2. Capa clickeable transparente cuando los controles están ocultos
+        // Capa táctil transparente cuando los controles están ocultos.
         if (!controlsVisible) {
             Box(
                 modifier = Modifier
@@ -158,7 +157,7 @@ fun VideoPlayerScreen(
             )
         }
 
-        /* Capa de Overlays */
+        // Capa de controles.
         AnimatedVisibility(
             visible = controlsVisible,
             enter = fadeIn(),
@@ -166,7 +165,7 @@ fun VideoPlayerScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
 
-                /* Barra superior */
+                // Barra superior.
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -195,7 +194,7 @@ fun VideoPlayerScreen(
                     }
                 }
 
-                /* Barra inferior */
+                // Barra inferior.
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)

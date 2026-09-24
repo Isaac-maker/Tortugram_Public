@@ -14,13 +14,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 
 /**
- * Estado "lista vacía" compartido por videos / fotos / gifs (y música si quieres).
- *
- * Se compone SOLO cuando la lista filtrada de la pestaña está vacía. Mientras
- * TDLib no haya llegado al inicio del historial, sigue pidiendo páginas por su
- * cuenta (antes solo se pedían al hacer scroll, y sin items no hay scroll:
- * por eso había que cambiar de pestaña o salir y volver a entrar).
- * Si el historial se agotó y sigue vacía, muestra el mensaje en inglés.
+ * Estado de lista vacía compartido por las pestañas de videos, fotos, GIFs y música. Mientras
+ * el historial no esté completo solicita páginas adicionales; si se agota, muestra un mensaje.
  *
  * isaac-maker 2026
  */
@@ -31,8 +26,7 @@ fun EmptyGalleryState(chatId: Long) {
     val endReachedChatId by TelegramManager.endReachedChatId.collectAsState()
     val endReached = endReachedChatId == chatId
 
-    // Al terminar cada página, isLoading pasa a false y este efecto se
-    // reinicia pidiendo la siguiente, hasta encontrar algo o llegar al final.
+    // Al terminar cada página solicita la siguiente, hasta hallar contenido o llegar al final.
     LaunchedEffect(chatId, isLoading, endReached) {
         if (!endReached && !isLoading) {
             TelegramManager.loadMoreMessages(chatId)

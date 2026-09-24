@@ -26,9 +26,7 @@ import dev.g000sha256.tdl.dto.MessageAnimation
 import kotlinx.coroutines.launch
 
 /**
- * Visor de GIFs a PANTALLA COMPLETA. Mismo patrón que
- * ImageViewerScreen.kt: overlay a nivel de ChatScreen, swipe + botones
- * anterior/siguiente + D-pad.
+ * Visor de GIFs a pantalla completa, con deslizamiento, botones anterior/siguiente y D-pad.
  *
  * isaac-maker 2026
  */
@@ -121,10 +119,7 @@ fun GifViewerScreen(
 @Composable
 private fun FullscreenGifPage(gifContent: MessageAnimation) {
 
-    // Un "gif" de Telegram es en realidad un video mp4 corto y silencioso
-    // (mismo tipo File que un MessageVideo), así que lo reproducimos con el
-    // mismo VideoPlayer de VideoPlayerScreen, pero sin controles y con
-    // loop = true para que se vea y se comporte como un gif real.
+    // Un GIF de Telegram es un mp4 corto; se reproduce en bucle y sin controles.
     val animationFile = gifContent.animation.animation
     val state = rememberVideoPlayerState()
 

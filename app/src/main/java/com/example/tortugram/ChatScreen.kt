@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.GifBox
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MusicNote
@@ -48,20 +49,20 @@ import dev.g000sha256.tdl.dto.MessageAnimation
 import dev.g000sha256.tdl.dto.MessageAudio
 import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessageVideo
+import dev.g000sha256.tdl.dto.MessageVideoNote
 import kotlinx.coroutines.delay
 import java.io.File
 
 /**
- * Pantalla "Dentro del Chat/Canal/Grupo"
+ * Pantalla de contenido de un chat, canal o grupo.
+ *
  * isaac-maker 2026
  */
 
-private enum class GalleryTab { VIDEOS, IMAGENES, GIFS, MUSIC }
+private enum class GalleryTab { VIDEOS, IMAGENES, GIFS, MUSIC, VOICE_NOTES }
 
-// Recuerda, por chat, el índice del último video que se tocó/enfocó. Al ser un
-// objeto simple (no un remember de Compose) sobrevive aunque ChatScreen se
-// destruya por completo al navegar a VideoPlayerScreen y se vuelva a crear al
-// regresar — así podemos restaurar el scroll y el foco en el mismo video.
+// Índice del último video enfocado por chat, para restaurar el scroll y el foco al volver del
+// reproductor.
 private object VideoGalleryFocusMemory {
     val lastIndexByChat = mutableMapOf<Long, Int>()
 }
@@ -69,36 +70,31 @@ private object VideoGalleryFocusMemory {
 @Composable
 fun ChatScreen(
     chatId: Long,
-    // Ahora entrega también la lista completa de videos del chat y el
-    // índice del que se tocó, para poder navegar "anterior"/"siguiente"
-    // desde VideoPlayerScreen sin que esa pantalla necesite conocer TDLib.
+    // Entrega la lista de videos del chat y el índice seleccionado, para navegar entre anterior
+    // y siguiente.
     onVideoClick: (videos: List<MessageVideo>, index: Int, title: String) -> Unit,
-    // Mismo patrón que onVideoClick/videoPlayerVisible pero para música:
-    // MusicPlayerScreen también se pinta como overlay en MainActivity.
+    // Reproductor de música, mostrado como overlay en MainActivity.
     onMusicClick: (audios: List<MessageAudio>, index: Int, title: String) -> Unit = { _, _, _ -> },
-    // Indica si el reproductor de video está actualmente visible ENCIMA de esta
-    // pantalla (como overlay en MainActivity). ChatScreen ya no se destruye al
-    // abrir un video, así que usamos este flag para saber cuándo el overlay se
-    // cerró y así restaurar el scroll/foco en el video que se estaba viendo.
+    // Notas de voz (videos redondos), reproducidas con VideoPlayerScreen como overlay.
+    onVideoNoteClick: (videoNotes: List<MessageVideoNote>, index: Int, title: String) -> Unit = { _, _, _ -> },
+    // Indica si el reproductor de video está visible sobre esta pantalla; al cerrarse se
+    // restaura el scroll y el foco.
     videoPlayerVisible: Boolean = false,
-    // Igual que videoPlayerVisible, pero para saber cuándo MusicPlayerScreen
-    // se cerró y restaurar el scroll/foco en la canción que sonaba.
+    // Ídem, para el reproductor de notas de voz.
+    videoNotePlayerVisible: Boolean = false,
+    // Ídem, para el reproductor de música.
     musicPlayerVisible: Boolean = false,
     onBack: () -> Unit = {}
 ) {
 
-    // Antes, el botón "volver" del control remoto no estaba interceptado
-    // aquí, así que el sistema lo tomaba como "salir de la app". Ahora lo
-    // capturamos para volver al HomeScreen en su lugar.
+    // Atrás regresa a HomeScreen en lugar de salir de la app.
     BackHandler(onBack = onBack)
 
     val messages by TelegramManager.messages.collectAsState()
 
     var selectedTab by remember { mutableStateOf(GalleryTab.VIDEOS) }
 
-    // Estado del visor fullscreen de imágenes/gifs. Se guarda aquí (y NO
-    // dentro de ImagenScreen/GifScreen) para poder pintarlo como overlay
-    // que cubra TODA la pantalla, tabs y botón "Volver a Home" incluidos.
+    // Estado del visor de imágenes y GIFs; se mantiene aquí para cubrir toda la pantalla.
     var fullscreenImages by remember {
         mutableStateOf<Pair<List<Pair<Long, MessagePhoto>>, Int>?>(null)
     }
@@ -134,6 +130,13 @@ fun ChatScreen(
         }
     }
 
+    // Notas de voz (videos redondos).
+    val videoNoteMessages = remember(messages) {
+        messages.mapNotNull { message ->
+            (message.content as? MessageVideoNote)?.let { message.id to it }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         Row(
@@ -142,11 +145,7 @@ fun ChatScreen(
                 .background(Color.Black)
         ) {
 
-            // Menú lateral fijo (solo íconos): al estar en un Row junto al
-            // grid, con el control remoto basta una pulsación IZQUIERDA desde
-            // cualquier fila del contenido para llegar a él — antes, con los
-            // tabs arriba, tocaba subir con muchos "arriba" para alcanzarlos
-            // si uno estaba abajo del todo en la grilla.
+            // Menú lateral fijo de íconos, accesible con una pulsación izquierda del D-pad.
             GalleryLateralSidebar(
                 selectedTab = selectedTab,
                 onTabSelected = { selectedTab = it }
@@ -194,11 +193,20 @@ fun ChatScreen(
                         musicPlayerVisible = musicPlayerVisible,
                         onMusicClick = onMusicClick
                     )
+
+                    // Pestaña de notas de voz (ver VoiceNotesScreen.kt).
+                    GalleryTab.VOICE_NOTES -> VoiceNotesScreen(
+                        chatId = chatId,
+                        videoNoteMessages = videoNoteMessages,
+                        totalMessagesLoaded = messages.size,
+                        videoNotePlayerVisible = videoNotePlayerVisible,
+                        onVideoNoteClick = onVideoNoteClick
+                    )
                 }
             }
         }
 
-        // Overlays a pantalla completa con Dialog para ocultar las barras y tabs por completo
+        // Visores a pantalla completa mediante Dialog.
         fullscreenImages?.let { (images, startIndex) ->
             Dialog(
                 onDismissRequest = { fullscreenImages = null },
@@ -233,7 +241,7 @@ fun ChatScreen(
     }
 }
 
-/* ─────────────── Menú lateral fijo: solo íconos ─────────────── */
+// Menú lateral de íconos.
 
 @Composable
 private fun GalleryLateralSidebar(
@@ -272,6 +280,13 @@ private fun GalleryLateralSidebar(
             contentDescription = "Música",
             selected = selectedTab == GalleryTab.MUSIC,
             onClick = { onTabSelected(GalleryTab.MUSIC) }
+        )
+        // Notas de voz.
+        GalleryTabIcon(
+            icon = Icons.Default.Circle,
+            contentDescription = "Voice notes",
+            selected = selectedTab == GalleryTab.VOICE_NOTES,
+            onClick = { onTabSelected(GalleryTab.VOICE_NOTES) }
         )
     }
 }
@@ -321,14 +336,13 @@ private fun GalleryTabIcon(
     }
 }
 
-/* ─────────────── Sección de videos (SIN CAMBIOS respecto al original) ─────────────── */
+// Sección de videos.
 
 @Composable
 private fun VideoGridSection(
     chatId: Long,
     videoMessages: List<Pair<Long, MessageVideo>>,
-    // Ver comentario en ImagenScreen.kt / GifScreen.kt: sin esto, si una tanda
-    // de historial no trae ningún video nuevo, la paginación podría congelarse.
+    // Evita que la paginación se detenga cuando un lote no trae videos nuevos.
     totalMessagesLoaded: Int,
     videoPlayerVisible: Boolean,
     onVideoClick: (videos: List<MessageVideo>, index: Int, title: String) -> Unit
@@ -336,7 +350,7 @@ private fun VideoGridSection(
 
     val gridState = rememberLazyGridState()
 
-    // FocusRequester del video que se debe re-enfocar al volver del reproductor
+    // Solicitante de foco para el video a restaurar al volver del reproductor.
     val restoredFocusRequester = remember { FocusRequester() }
     val savedIndex = VideoGalleryFocusMemory.lastIndexByChat[chatId]
 
@@ -357,14 +371,11 @@ private fun VideoGridSection(
         }
     }
 
-    // Como ChatScreen ya NO se destruye al abrir el video (ahora es un overlay
-    // en MainActivity), lo que dispara la restauración es que el overlay se
-    // cierre: cuando "videoPlayerVisible" pasa de true a false, saltamos el
-    // scroll al video guardado y le pedimos el foco.
+    // Al cerrarse el reproductor, restaura el scroll y el foco en el video guardado.
     LaunchedEffect(videoPlayerVisible, videoMessages.size, chatId) {
         if (!videoPlayerVisible && savedIndex != null && savedIndex < videoMessages.size) {
             gridState.scrollToItem(savedIndex)
-            delay(50) // deja que la miniatura objetivo se componga antes de pedir foco
+            delay(50) // Espera a que se componga la miniatura antes de pedir foco
             try {
                 restoredFocusRequester.requestFocus()
             } catch (_: Exception) {}
@@ -401,7 +412,7 @@ private fun VideoGridSection(
                         .ifEmpty { item.second.caption.text }
                         .ifEmpty { fallbackVideoTitle }
 
-                    // Guardamos el índice ANTES de navegar para poder restaurarlo al volver
+                    // Guarda el índice antes de navegar para poder restaurarlo.
                     VideoGalleryFocusMemory.lastIndexByChat[chatId] = index
 
                     onVideoClick(videoMessages.map { it.second }, index, title)
@@ -439,12 +450,12 @@ private fun VideoThumbnailCard(
 
     val accentOrange = Color(0xFFFF3E17)
 
-    // Contenedor principal que agrupa la miniatura y la sección del nombre
+    // Contenedor de la miniatura y del nombre.
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF1C1C1E)) // Fondo oscuro inferior / base
+            .background(Color(0xFF1C1C1E)) // Fondo base
             .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick() }
             .border(
@@ -453,7 +464,7 @@ private fun VideoThumbnailCard(
                 shape = RoundedCornerShape(12.dp)
             )
     ) {
-        // Sección superior: Miniatura y tiempo del video
+        // Miniatura y duración.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -470,7 +481,7 @@ private fun VideoThumbnailCard(
                 )
             }
 
-            // Duración del video (esquina inferior derecha)
+            // Duración del video.
             Text(
                 text = formatTime(videoContent.video.duration * 1000L),
                 style = MaterialTheme.typography.labelMedium,
@@ -483,7 +494,7 @@ private fun VideoThumbnailCard(
             )
         }
 
-        // Sección inferior: Fondo diferenciado con nombre en texto blanco
+        // Nombre del video.
         Box(
             modifier = Modifier
                 .fillMaxWidth()

@@ -31,9 +31,8 @@ import dev.g000sha256.tdl.dto.MessagePhoto
 import java.io.File
 
 /**
- * Galería de imágenes del chat: solo el grid de 5 columnas. El modo
- * pantalla completa vive en ImageViewerScreen.kt, montado como overlay
- * a nivel de ChatScreen (así cubre TODA la pantalla, tabs incluidos).
+ * Galería de imágenes del chat en cuadrícula de 5 columnas. El modo pantalla completa se
+ * encuentra en ImageViewerScreen.kt.
  *
  * isaac-maker 2026
  */
@@ -42,11 +41,8 @@ import java.io.File
 fun ImagenScreen(
     chatId: Long,
     imageMessages: List<Pair<Long, MessagePhoto>>,
-    // Total de mensajes cargados del chat (sin filtrar por tipo). Se usa como
-    // "llave" del LaunchedEffect de abajo para que siga pidiendo más historial
-    // aunque una tanda no traiga NINGUNA imagen nueva — antes, si una tanda no
-    // sumaba imágenes, imageMessages.size no cambiaba y snapshotFlow dejaba de
-    // emitir (mismo valor "cerca del final" de antes), congelando la paginación.
+    // Total de mensajes cargados; sirve de clave para seguir paginando aunque un lote no traiga
+    // imágenes.
     totalMessagesLoaded: Int,
     onLoadMore: () -> Unit,
     onImageClick: (index: Int) -> Unit
@@ -98,8 +94,7 @@ private fun ImageThumbnailCard(
     onClick: () -> Unit
 ) {
 
-    // Tamaño más pequeño disponible: suficiente para el grid y más
-    // liviano/rápido de descargar que la foto completa.
+    // Usa la miniatura de menor tamaño, suficiente para la cuadrícula.
     val previewSize = remember(photoContent) {
         photoContent.photo.sizes.minByOrNull { it.width }
     }

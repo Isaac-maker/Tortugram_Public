@@ -12,13 +12,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
- * Gestiona el almacenamiento local que usa TDLib (archivos descargados +
- * base de datos), apoyándose SIEMPRE en las funciones propias de TDLib
- * (getStorageStatisticsFast / optimizeStorage, en TelegramManager.kt).
- *
- * Este archivo NUNCA borra carpetas a mano ni toca databaseDirectory,
- * databaseEncryptionKey ni el AuthorizationState: la sesión (login/QR)
- * queda completamente intacta pase lo que pase aquí.
+ * Administra el almacenamiento local de TDLib mediante sus funciones propias
+ * (getStorageStatisticsFast y optimizeStorage). No elimina carpetas manualmente ni afecta la
+ * sesión.
  *
  * isaac-maker 2026
  */
@@ -30,12 +26,10 @@ object StorageManager {
     private const val KEY_LIMIT_BYTES = "limit_bytes"
     private const val KEY_AUTO_CLEAN = "auto_clean_enabled"
 
-    // Límite inicial recomendado para un dispositivo con poco espacio
-    // (por ejemplo el Fire TV Lite). El usuario lo puede cambiar en
-    // StorageScreen.
+    // Límite inicial recomendado; modificable en StorageScreen.
     const val DEFAULT_LIMIT_BYTES: Long = 500L * 1024 * 1024 // 500 MB
 
-    // Opciones que se muestran en StorageScreen como botones de límite.
+    // Opciones de límite mostradas en StorageScreen.
     val LIMIT_OPTIONS_BYTES: List<Long> = listOf(
         250L * 1024 * 1024,
         500L * 1024 * 1024,
@@ -65,9 +59,7 @@ object StorageManager {
     private val _isBusy = MutableStateFlow(false)
     val isBusy: StateFlow<Boolean> = _isBusy.asStateFlow()
 
-    // Aviso puntual para la UI (limpieza automática hecha, o "llegaste
-    // al límite pero la limpieza automática está apagada"). La pantalla
-    // lo lee y lo borra con clearNotice() después de mostrarlo.
+    // Aviso para la UI; se elimina con clearNotice() tras mostrarse.
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
 
@@ -97,7 +89,7 @@ object StorageManager {
             ?.putLong(KEY_LIMIT_BYTES, bytes)
             ?.apply()
 
-        // Si ya estamos por encima del nuevo límite, actuamos ya mismo.
+        // Si se supera el nuevo límite, se aplica de inmediato.
         checkAgainstLimit()
     }
 
@@ -131,10 +123,8 @@ object StorageManager {
     }
 
     /**
-     * Botón "Limpiar archivos" de StorageScreen: borra TODOS los
-     * archivos descargados (fotos, miniaturas, fragmentos de video)
-     * que TDLib puede volver a descargar cuando haga falta. La base de
-     * datos y la sesión quedan intactas.
+     * Elimina todos los archivos descargados; TDLib puede volver a descargarlos. La base de
+     * datos y la sesión no se modifican.
      */
     fun cleanNow(onDone: (freedBytes: Long) -> Unit = {}) {
 
@@ -163,11 +153,8 @@ object StorageManager {
     }
 
     /**
-     * TelegramManager llama a esto después de cada descarga (foto,
-     * miniatura o fragmento de video vía streaming). Si superamos el
-     * límite: con limpieza automática ON, le pedimos a TDLib que
-     * recorte; con OFF, solo dejamos un aviso para que la UI lo
-     * muestre (por ejemplo un Toast/Snackbar).
+     * Se invoca tras cada descarga. Si se supera el límite, solicita a TDLib el recorte
+     * (limpieza automática) o registra un aviso para la UI.
      */
     fun onFileDownloaded() {
 

@@ -31,13 +31,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 
 /**
- * Pantalla de almacenamiento.
- *
- * Muestra cuánto espacio usan los archivos descargados (fotos, videos,
- * miniaturas) frente a la base de datos de TDLib, deja elegir un límite
- * automático y ofrece un botón para limpiar ya. Todo pasa por
- * StorageManager -> TelegramManager.optimizeStorage(), así que nunca se
- * toca el login/QR ni la sesión.
+ * Pantalla de almacenamiento: muestra el espacio usado, permite elegir el límite automático y
+ * limpiar manualmente. Opera a través de StorageManager, sin afectar la sesión.
  *
  * isaac-maker 2026
  */
@@ -88,7 +83,7 @@ fun StorageScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // --- Resumen de espacio ---
+        // Resumen de espacio.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -124,7 +119,7 @@ fun StorageScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- Límite / limpieza automática ---
+        // Límite y limpieza automática.
         Text(
             text = stringResource(R.string.storage_limit_title),
             style = MaterialTheme.typography.titleMedium,
@@ -186,7 +181,7 @@ fun StorageScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- Botón de limpieza manual ---
+        // Limpieza manual.
         val freedMessageTemplate = stringResource(R.string.storage_freed_message)
 
         Button(
@@ -208,8 +203,7 @@ fun StorageScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Aviso más reciente: primero el de la limpieza automática
-        // (StorageManager.notice), y si no hay, el de la limpieza manual.
+        // Muestra el aviso de la limpieza automática o, en su defecto, el de la manual.
         val message = notice ?: lastFreedMessage
 
         if (message != null) {

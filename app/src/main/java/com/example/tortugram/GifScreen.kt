@@ -34,8 +34,7 @@ import java.io.File
 fun GifScreen(
     chatId: Long,
     gifMessages: List<Pair<Long, MessageAnimation>>,
-    // Ver comentario equivalente en ImagenScreen.kt: sin esto, en cuanto una
-    // tanda de historial no trae ningún gif nuevo, la paginación se congela.
+    // Evita que la paginación se detenga cuando un lote no trae GIFs nuevos.
     totalMessagesLoaded: Int,
     onLoadMore: () -> Unit,
     onGifClick: (index: Int) -> Unit
@@ -80,7 +79,7 @@ private fun GifThumbnailCard(
     gifContent: MessageAnimation,
     onClick: () -> Unit
 ) {
-    // 1. Intentar con el thumbnail; si no existe, usar la animación directa
+    // Usa la miniatura o, si no existe, la animación directa.
     val animationFile = gifContent.animation.thumbnail?.file ?: gifContent.animation.animation
 
     var localPath by remember(animationFile.id) {
@@ -95,7 +94,7 @@ private fun GifThumbnailCard(
             return@LaunchedEffect
         }
 
-        // Se solicita la descarga explícita del archivo
+        // Solicita la descarga del archivo.
         TelegramManager.downloadFile(animationFile.id) { path ->
             localPath = path
         }

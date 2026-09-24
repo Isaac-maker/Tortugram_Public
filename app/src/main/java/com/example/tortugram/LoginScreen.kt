@@ -21,7 +21,8 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 
 /**
- * Login screen / QR code screen
+ * Pantalla de inicio de sesión mediante código QR.
+ *
  * isaac-maker 2026
  */
 @Composable

@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,14 +39,13 @@ import kotlinx.coroutines.delay
 import java.io.File
 
 /**
- * Pantalla "Música" dentro de un chat — misma mecánica que VideoGridSection:
- * grid con paginación, y al volver de MusicPlayerScreen (overlay) se restaura
- * el scroll/foco en la canción que se estaba escuchando.
+ * Pantalla «Música» de un chat: cuadrícula con paginación que restaura el scroll y el foco al
+ * cerrar el reproductor.
+ *
  * isaac-maker 2026
  */
 
-// Igual que VideoGalleryFocusMemory: sobrevive a la recomposición/destrucción
-// de ChatScreen para poder restaurar el scroll y el foco al volver del player.
+// Recuerda la última canción enfocada por chat.
 private object MusicGalleryFocusMemory {
     val lastIndexByChat = mutableMapOf<Long, Int>()
 }
@@ -56,8 +54,7 @@ private object MusicGalleryFocusMemory {
 fun MusicScreen(
     chatId: Long,
     audioMessages: List<Pair<Long, MessageAudio>>,
-    // Ver comentario en VideoGridSection: sin esto, si una tanda de historial
-    // no trae ninguna canción nueva, la paginación podría congelarse.
+    // Evita que la paginación se detenga cuando un lote no trae canciones nuevas.
     totalMessagesLoaded: Int,
     musicPlayerVisible: Boolean,
     onMusicClick: (audios: List<MessageAudio>, index: Int, title: String) -> Unit
@@ -85,8 +82,7 @@ fun MusicScreen(
         }
     }
 
-    // Igual que en VideoGridSection: cuando el reproductor (overlay) se
-    // cierra, saltamos al índice guardado y le devolvemos el foco.
+    // Al cerrarse el reproductor, restaura el scroll y el foco.
     LaunchedEffect(musicPlayerVisible, audioMessages.size, chatId) {
         if (!musicPlayerVisible && savedIndex != null && savedIndex < audioMessages.size) {
             gridState.scrollToItem(savedIndex)
@@ -98,9 +94,7 @@ fun MusicScreen(
     }
 
     if (audioMessages.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        EmptyGalleryState(chatId = chatId)
         return
     }
 
@@ -130,7 +124,7 @@ fun MusicScreen(
                         .ifEmpty { item.second.caption.text }
                         .ifEmpty { fallbackTitle }
 
-                    // Guardamos el índice ANTES de navegar, igual que con videos
+                    // Guarda el índice antes de navegar.
                     MusicGalleryFocusMemory.lastIndexByChat[chatId] = index
 
                     onMusicClick(audioMessages.map { it.second }, index, title)
@@ -170,7 +164,7 @@ private fun MusicThumbnailCard(
 
     val accentBlue = Color(0xFFFF5722)
 
-    // Mismo layout que VideoThumbnailCard: portada arriba, nombre abajo
+    // Tarjeta con portada y nombre.
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -184,7 +178,7 @@ private fun MusicThumbnailCard(
                 shape = RoundedCornerShape(12.dp)
             )
     ) {
-        // Portada del álbum (o ícono de nota musical si no tiene)
+        // Portada del álbum, o ícono musical si no tiene.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -208,7 +202,7 @@ private fun MusicThumbnailCard(
                 )
             }
 
-            // Duración (esquina inferior derecha), igual que en video
+            // Duración.
             Text(
                 text = formatTime(audioContent.audio.duration * 1000L),
                 style = MaterialTheme.typography.labelMedium,
@@ -221,7 +215,7 @@ private fun MusicThumbnailCard(
             )
         }
 
-        // Título + intérprete
+        // Título e intérprete.
         Column(
             modifier = Modifier
                 .fillMaxWidth()

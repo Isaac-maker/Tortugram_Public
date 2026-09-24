@@ -41,13 +41,9 @@ import kotlinx.coroutines.delay
 import java.io.File as JavaFile
 
 /**
- * Reproductor de música a pantalla completa. Calcado de VideoPlayerScreen.kt
- * (mismo manejo de foco/teclas del control remoto de Fire TV, ya con el fix
- * de foco aplicado) pero mostrando la portada del álbum en vez del video.
+ * Reproductor de música a pantalla completa, basado en VideoPlayerScreen. Muestra la portada
+ * del álbum y usa AudioPlayer.kt con el mimeType real del audio.
  *
- * Usa AudioPlayer.kt (mismo StreamingServer que VideoPlayer.kt, pero sin
- * PlayerView y con el mimeType real del audio) en vez de VideoPlayer, que
- * forzaba MimeTypes.VIDEO_MP4 y rompía cualquier audio que no fuera mp4.
  * isaac-maker 2026
  */
 
@@ -57,8 +53,7 @@ fun MusicPlayerScreen(
     title: String,
     performer: String = "",
     coverFile: File? = null,
-    // mimeType real del audio (audio.mimeType en TDLib). Se lo pasamos a
-    // AudioPlayer para que ExoPlayer no intente decodificarlo como mp4.
+    // MimeType real del audio, para que ExoPlayer no lo trate como mp4.
     mimeType: String? = null,
     onBack: () -> Unit,
     onPrevious: (() -> Unit)? = null,
@@ -96,16 +91,13 @@ fun MusicPlayerScreen(
         if (controlsVisible) {
             playButtonFocusRequester.requestFocus()
         } else {
-            // Mismo fix que en VideoPlayerScreen: si nadie queda enfocado al
-            // ocultar los controles, las teclas del control remoto dejan de
-            // llegar al onKeyEvent del Box raíz.
+            // Garantiza que un control conserve el foco para recibir las teclas del control
+            // remoto.
             rootFocusRequester.requestFocus()
         }
     }
 
-    // A diferencia del video, en música normalmente queremos que los
-    // controles se queden visibles (es lo que se está mirando). Se ocultan
-    // igual tras inactividad para dejar ver la portada completa.
+    // Los controles permanecen visibles y se ocultan tras un periodo de inactividad.
     LaunchedEffect(controlsVisible, state.isPlaying, userActivityTrigger) {
         if (controlsVisible && state.isPlaying) {
             delay(3500)
@@ -175,7 +167,7 @@ fun MusicPlayerScreen(
                 } else false
             }
     ) {
-        /* Fondo: portada difuminada a pantalla completa */
+        // Fondo: portada difuminada.
         if (coverLocalPath.isNotEmpty() && JavaFile(coverLocalPath).exists()) {
             AsyncImage(
                 model = JavaFile(coverLocalPath),
@@ -185,7 +177,7 @@ fun MusicPlayerScreen(
                     .blur(40.dp),
                 contentScale = ContentScale.Crop
             )
-            // Oscurece la portada difuminada para que el texto/controles resalten
+            // Oscurece la portada para resaltar el texto y los controles.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -193,7 +185,7 @@ fun MusicPlayerScreen(
             )
         }
 
-        /* Motor de audio: streaming real, sin superficie de video */
+        // Motor de audio, sin superficie de video.
         key(file.id) {
             AudioPlayer(
                 file = file,
@@ -202,7 +194,7 @@ fun MusicPlayerScreen(
             )
         }
 
-        // Capa clickeable transparente cuando los controles están ocultos
+        // Capa táctil transparente cuando los controles están ocultos.
         if (!controlsVisible) {
             Box(
                 modifier = Modifier
@@ -216,7 +208,7 @@ fun MusicPlayerScreen(
             )
         }
 
-        /* Portada centrada + título/intérprete */
+        // Portada, título e intérprete.
         Column(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -269,7 +261,7 @@ fun MusicPlayerScreen(
             }
         }
 
-        /* Overlay de controles (barra superior de cierre + barra inferior) */
+        // Controles: barra superior e inferior.
         AnimatedVisibility(
             visible = controlsVisible,
             enter = fadeIn(),

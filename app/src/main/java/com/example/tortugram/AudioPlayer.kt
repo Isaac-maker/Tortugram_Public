@@ -18,12 +18,9 @@ import dev.g000sha256.tdl.dto.File
 import kotlinx.coroutines.delay
 
 /**
- * Reproductor de audio puro para MusicPlayerScreen: mismo StreamingServer
- * que VideoPlayer.kt y el mismo VideoPlayerState (es genérico, solo envuelve
- * un ExoPlayer), pero SIN inflar ningún PlayerView -no hace falta superficie
- * para audio- y usando el mimeType real del archivo en vez de forzar
- * VIDEO_MP4 como hace VideoPlayer.kt (eso rompía la reproducción para
- * cualquier audio que no fuera literalmente un mp4).
+ * Reproductor de audio para MusicPlayerScreen. Comparte StreamingServer y VideoPlayerState con
+ * VideoPlayer.kt, pero sin PlayerView y con el mimeType real del archivo.
+ *
  * isaac-maker 2026
  */
 @OptIn(UnstableApi::class)
@@ -31,9 +28,7 @@ import kotlinx.coroutines.delay
 fun AudioPlayer(
     file: File,
     state: VideoPlayerState,
-    // mimeType real del audio (viene de audio.mimeType en TDLib, ej.
-    // "audio/mpeg", "audio/ogg"). Si llega vacío, se deja que ExoPlayer lo
-    // detecte solo a partir de la URL/extensión servida por StreamingServer.
+    // MimeType real del audio; si está vacío, ExoPlayer lo detecta a partir de la URL.
     mimeType: String? = null
 ) {
     val context = LocalContext.current
@@ -69,7 +64,7 @@ fun AudioPlayer(
 
             override fun onIsPlayingChanged(playing: Boolean) {
                 state.isPlaying = playing
-                // Igual que en VideoPlayer: pantalla encendida solo mientras suena
+                // Mantiene la pantalla encendida solo durante la reproducción.
                 if (playing) {
                     activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {

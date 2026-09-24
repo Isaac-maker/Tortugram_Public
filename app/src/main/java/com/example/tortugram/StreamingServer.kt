@@ -14,14 +14,10 @@ import java.io.RandomAccessFile
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Servidor HTTP local (127.0.0.1) que actúa de puente entre TDLib y ExoPlayer.
- *
- * Usa el tamaño total real del archivo (conocido de antemano por TDLib, sin
- * descargar nada) para saber con certeza cuándo termina el video, en vez de
- * adivinarlo por el tamaño de cada lectura parcial.
+ * Servidor HTTP local (127.0.0.1) que conecta TDLib con ExoPlayer. Usa el tamaño total del
+ * archivo, conocido de antemano, para determinar el fin del stream.
  *
  * isaac-maker 2026
- *
  */
 object StreamingServer {
 
@@ -30,14 +26,11 @@ object StreamingServer {
     private const val MAX_RETRIES_PER_CHUNK = 40
     private const val RETRY_DELAY_MS = 150L
 
-    // Ventana que se pide "por adelantado" en segundo plano, y margen
-    // (respecto a lo ya adelantado) a partir del cual se dispara la
-    // siguiente ventana. No afecta la lectura síncrona existente: solo
-    // hace que, cuando el loop llegue ahí, los datos ya estén en TDLib.
+    // Ventana de precarga y margen que dispara la siguiente ventana.
     private const val PREFETCH_WINDOW = 6L * 1024 * 1024 // 6 MB
     private const val PREFETCH_TRIGGER_MARGIN = 2L * 1024 * 1024 // 2 MB
 
-    // offset hasta el cual ya se pidió prefetch, por fileId.
+    // Offset hasta el que se solicitó precarga, por fileId.
     private val prefetchedUpTo = ConcurrentHashMap<Int, Long>()
 
     private var server: EmbeddedServer<*, *>? = null
@@ -79,8 +72,7 @@ object StreamingServer {
                             )
                         }
                     }
-                    // Si totalSize es 0 (no llegó el parámetro), se cae al modo
-                    // anterior: sin Content-Length, chunked, mejor que nada.
+                    // Sin totalSize se responde con transferencia chunked.
 
                     call.respondBytesWriter {
                         var position = startByte
@@ -92,10 +84,8 @@ object StreamingServer {
                                 CHUNK_SIZE.toLong()
                             }
 
-                            // Adelantarse: si nos estamos acercando al borde
-                            // de lo que ya se pidió con prefetch, disparamos
-                            // (sin esperar) la siguiente ventana. La lectura
-                            // de abajo sigue igual que antes.
+                            // Dispara la siguiente ventana de precarga al acercarse al límite
+                            // de la anterior.
                             val prefetchedTo = prefetchedUpTo.getOrDefault(fileId, position)
                             if (
                                 (totalSize <= 0 || prefetchedTo < totalSize) &&
@@ -154,8 +144,8 @@ object StreamingServer {
                             }
 
                             if (bytesWritten <= 0) {
-                                // TDLib aún no escribió estos bytes en disco: reintenta
-                                // la MISMA posición en vez de cortar el stream.
+                                // Los bytes aún no están en disco: se reintenta la misma
+                                // posición.
                                 delay(RETRY_DELAY_MS)
                                 continue
                             }
