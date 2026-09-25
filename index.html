@@ -116,6 +116,8 @@
   .btn-primary:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(43,166,64,.55)}
   .btn-ghost{border:1px solid var(--card-border);color:var(--text);background:rgba(255,255,255,.03)}
   .btn-ghost:hover{transform:translateY(-3px);background:rgba(255,255,255,.07)}
+  .btn-kofi{background:linear-gradient(135deg,#ff8c5b,#ff5e5b);color:#fff;box-shadow:0 6px 30px rgba(255,94,91,.4)}
+  .btn-kofi:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(255,94,91,.55)}
   .hero-stats{display:flex;gap:48px;margin-top:64px;flex-wrap:wrap;justify-content:center;position:relative;z-index:1}
   .stat{text-align:center}
   .stat b{display:block;font-family:'Space Grotesk';font-size:1.7rem;color:var(--text)}
@@ -183,10 +185,17 @@
   footer .disclaimer{margin-top:10px;font-size:.8rem;max-width:720px;margin-left:auto;margin-right:auto}
 
   .grid.two{max-width:860px;margin:0 auto;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .grid.single{max-width:300px;margin:0 auto}
   a.card{display:block;text-decoration:none;color:inherit}
   a.card .go{display:inline-block;margin-top:16px;color:var(--accent-2);font-weight:700;font-size:.92rem}
   a:focus-visible,button:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px;border-radius:6px}
 
+
+  .kofi-qr{width:min(200px,55vw);border-radius:14px;border:1px solid var(--card-border);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .kofi-card{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px}
+  .kofi-card .kofi-btn-img{transition:transform .2s}
+  .kofi-card .kofi-btn-img:hover{transform:scale(1.06)}
+  .kofi-widget-slot{min-height:60px;display:flex;align-items:center;justify-content:center}
   @media(max-width:860px){.nav-links{gap:12px}}
   @media(max-width:640px){
     .nav-links a:not(.btn-download){display:none}
@@ -202,6 +211,7 @@
     <a href="#features" data-en="Features" data-es="Características" data-pt="Recursos" data-fr="Fonctionnalités" data-ru="Функции" data-zh="功能" data-hi="विशेषताएँ" data-ja="機能">Features</a>
     <a href="#release" data-en="What's New" data-es="Novedades" data-pt="Novidades" data-fr="Nouveautés" data-ru="Что нового" data-zh="最新动态" data-hi="नई बातें" data-ja="新着情報">What's New</a>
     <a href="#privacy" data-en="Privacy" data-es="Privacidad" data-pt="Privacidade" data-fr="Confidentialité" data-ru="Конфиденциальность" data-zh="隐私" data-hi="गोपनीयता" data-ja="プライバシー">Privacy</a>
+    <a href="#support" data-en="Support the project" data-es="Apoya el proyecto" data-pt="Apoie o projeto" data-fr="Soutenez le projet" data-ru="Поддержите проект" data-zh="支持这个项目" data-hi="प्रोजेक्ट का समर्थन करें" data-ja="プロジェクトを支援">Support the project</a>
     <div class="lang-switch">
       <button id="btn-en" class="active" onclick="setLang('en')" aria-label="English">EN</button>
       <button id="btn-es" onclick="setLang('es')" aria-label="Español">ES</button>
@@ -224,6 +234,7 @@
   <div class="hero-cta">
     <a class="btn btn-primary" href="https://github.com/Isaac-maker/Tortugram_Public/releases/tag/V_0.0.1" target="_blank" rel="noopener"><span data-en="⬇ &nbsp;Download APK — v0.0.1" data-es="⬇ &nbsp;Descargar APK" data-pt="⬇ &nbsp;Baixar APK" data-fr="⬇ &nbsp;Télécharger l'APK" data-ru="⬇ &nbsp;Скачать APK" data-zh="⬇ &nbsp;下载 APK" data-hi="⬇ &nbsp;APK डाउनलोड करें" data-ja="⬇ &nbsp;APKをダウンロード">⬇ &nbsp;Download APK</span></a>
     <a class="btn btn-ghost" href="https://github.com/Isaac-maker/Tortugram_Public" target="_blank" rel="noopener"><span data-en="⭐ View on GitHub" data-es="⭐ Ver en GitHub" data-pt="⭐ Ver no GitHub" data-fr="⭐ Voir sur GitHub" data-ru="⭐ Смотреть на GitHub" data-zh="⭐ 在 GitHub 上查看" data-hi="⭐ GitHub पर देखें" data-ja="⭐ GitHubで見る">⭐ View on GitHub</span></a>
+    <a class="btn btn-kofi" href="https://ko-fi.com/J1P727O57W" target="_blank" rel="noopener"><span data-en="☕ Buy me a coffee" data-es="☕ Invítame un café" data-pt="☕ Me pague um café" data-fr="☕ Offrez-moi un café" data-ru="☕ Угостите меня кофе" data-zh="☕ 请我喝杯咖啡" data-hi="☕ मुझे एक कॉफ़ी खिलाएँ" data-ja="☕ コーヒーをおごる">☕ Buy me a coffee</span></a>
   </div>
   <div class="hero-stats">
     <div class="stat"><b>7</b><span data-en="languages" data-es="idiomas" data-pt="idiomas" data-fr="langues" data-ru="языков" data-zh="种语言" data-hi="भाषाएँ" data-ja="言語">languages</span></div>
@@ -320,6 +331,20 @@
       <p data-en="Step-by-step instructions to erase Tortugram data from your device and end its access to Telegram." data-es="Instrucciones paso a paso para borrar los datos de Tortugram de tu dispositivo y terminar su acceso a Telegram." data-pt="Instruções passo a passo para apagar os dados do Tortugram do seu dispositivo e encerrar o acesso dele ao Telegram." data-fr="Instructions étape par étape pour effacer les données de Tortugram de votre appareil et révoquer son accès à Telegram." data-ru="Пошаговые инструкции по удалению данных Tortugram с устройства и прекращению его доступа к Telegram." data-zh="从设备中擦除 Tortugram 数据并终止其对 Telegram 访问的分步说明。" data-hi="अपने डिवाइस से Tortugram डेटा मिटाने और Telegram तक उसकी पहुँच समाप्त करने के चरण-दर-चरण निर्देश।" data-ja="デバイスからTortugramのデータを消去し、Telegramへのアクセスを解除する手順。">Step-by-step instructions to erase Tortugram data from your device and end its access to Telegram.</p>
       <span class="go" data-en="How to delete your data" data-es="Cómo eliminar tus datos" data-pt="Como excluir seus dados" data-fr="Comment supprimer vos données" data-ru="Как удалить ваши данные" data-zh="如何删除您的数据" data-hi="अपना डेटा कैसे हटाएँ" data-ja="データの削除方法">How to delete your data</span>
     </a>
+  </div>
+</section>
+
+
+<section id="support">
+  <div class="section-head">
+    <div class="tag" data-en="Support the project" data-es="Apoya el proyecto" data-pt="Apoie o projeto" data-fr="Soutenez le projet" data-ru="Поддержите проект" data-zh="支持这个项目" data-hi="प्रोजेक्ट का समर्थन करें" data-ja="プロジェクトを支援">Support the project</div>
+    <h2 data-en="Buy me a coffee ☕" data-es="Invítame un café ☕" data-pt="Me pague um café ☕" data-fr="Offrez-moi un café ☕" data-ru="Угостите меня кофе ☕" data-zh="请我喝杯咖啡 ☕" data-hi="मुझे एक कॉफ़ी खिलाएँ ☕" data-ja="コーヒーをおごる ☕">Buy me a coffee ☕</h2>
+    <p data-en="Tortugram is 100% free and open source. This QR is completely optional — scan it only if you'd like to help pay off my university debt. Thank you! 💙" data-es="Tortugram es 100% gratis y de código abierto. Este QR es totalmente opcional — escaneálo solo si querés ayudarme a pagar mi deuda universitaria. ¡Gracias! 💙" data-pt="O Tortugram é 100% gratuito e de código aberto. Este QR é totalmente opcional — escaneie apenas se quiser me ajudar a pagar minha dívida universitária. Obrigado! 💙" data-fr="Tortugram est 100 % gratuit et open source. Ce QR est entièrement facultatif — scannez-le seulement si vous souhaitez m'aider à rembourser ma dette universitaire. Merci ! 💙" data-ru="Tortugram на 100% бесплатен и с открытым исходным кодом. Этот QR-код совершенно необязателен — отсканируйте его, только если хотите помочь мне выплатить студенческий долг. Спасибо! 💙" data-zh="Tortugram 100% 免费且开源。此二维码完全可选——如果您愿意帮我偿还大学学费贷款，欢迎扫描。谢谢！💙" data-hi="Tortugram 100% मुफ़्त और ओपन सोर्स है। यह QR पूरी तरह वैकल्पिक है — इसे केवल तभी स्कैन करें अगर आप मेरे विश्वविद्यालय के ऋण को चुकाने में मदद करना चाहते हैं। धन्यवाद! 💙" data-ja="Tortugramは100%無料でオープンソースです。このQRは完全に任意です——大学の学費ローンの返済を手伝いたい場合のみスキャンしてください。ありがとうございます！💙">Tortugram is 100% free and open source. This QR is completely optional — scan it only if you'd like to help pay off my university debt. Thank you! 💙</p>
+  </div>
+  <div class="grid single">
+    <div class="card kofi-card">
+      <img class="kofi-qr" src="qrcode.png" alt="Ko-fi QR code">
+    </div>
   </div>
 </section>
 
