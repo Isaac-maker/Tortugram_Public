@@ -7,6 +7,7 @@
 **A specialized Telegram streaming client designed for Amazon Fire TV.**  
 *Un cliente de Telegram especializado en streaming multimedia para dispositivos Amazon Fire TV.*
 
+[![buy me a coffee](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Isaac-maker)
 [![Website](https://img.shields.io/badge/Web-Página%20Oficial-orange?style=for-the-badge&logo=google-chrome&logoColor=white)](https://isaac-maker.github.io/Tortugram_Public/)
 [![Download APK](https://img.shields.io/badge/Download-APK%20Final%20Release-2ba640?style=for-the-badge&logo=android)](https://github.com/Isaac-maker/Tortugram_Public/releases/tag/V_0.0.1)
 [![License](https://img.shields.io/badge/License-Open%20Source-blue?style=for-the-badge)](https://github.com/Isaac-maker/Tortugram)
