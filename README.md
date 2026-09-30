@@ -50,6 +50,18 @@ Engineered exclusively for remote-control navigation on **Amazon Fire TV Stick**
 Get the final build directly from the releases section:
 👉 **[Download Tortugram Final Release APK](https://github.com/Isaac-maker/Tortugram_Public/releases/tag/V_0.0.1)**
 
+### 📹 Optimize Your Videos for Smooth Playback
+Some videos may stutter or fail to play smoothly if they use high H.264 profiles or unusual codecs.  
+> [!TIP]
+> 📹 **Optimize your videos for smooth playback!** Some videos may stutter or fail if they use high H.264 profiles or unusual codecs.
+> Convert them in batch with our companion tool before streaming:
+>
+> 👉 **GitHub project:** https://github.com/Isaac-maker/ExoPlayer-Optimizer-Pro-FFmpeg
+>
+> [![ExoPlayer Optimizer Pro](https://img.shields.io/badge/ExoPlayer%20Optimizer%20Pro-FFmpeg%20Tool-7c5cff?style=for-the-badge&logo=github)](https://github.com/Isaac-maker/ExoPlayer-Optimizer-Pro-FFmpeg)
+>
+> Converts your videos to a fully compatible format (H.264 Baseline, AAC, faststart). Free, open source, and easy to use.
+
 ### Contributing
 Tortugram is an open-source initiative. Contributions, feature requests, and pull requests are welcome.
 
@@ -87,6 +99,18 @@ Diseñada exclusivamente para navegación mediante control remoto en dispositivo
 ### Descarga e Instalación
 Obtén la versión final desde la sección de lanzamientos:
 👉 **[Descargar APK Versión Final de Tortugram](https://github.com/Isaac-maker/Tortugram_Public/releases/tag/V_0.0.1)**
+
+### 📹 Optimiza tus videos para una reproducción fluida
+Algunos videos pueden reproducirse entrecortados o fallar si usan perfiles altos de H.264 o códecs poco habituales.  
+> [!TIP]
+> 📹 **¡Optimiza tus videos para una reproducción fluida!** Algunos videos pueden reproducirse entrecortados o fallar si usan perfiles altos de H.264 o códecs poco habituales.
+> Conviértelos por lotes con nuestra herramienta complementaria antes de reproducirlos:
+>
+> 👉 **Proyecto en GitHub:** https://github.com/Isaac-maker/ExoPlayer-Optimizer-Pro-FFmpeg
+>
+> [![ExoPlayer Optimizer Pro](https://img.shields.io/badge/ExoPlayer%20Optimizer%20Pro-Herramienta%20FFmpeg-7c5cff?style=for-the-badge&logo=github)](https://github.com/Isaac-maker/ExoPlayer-Optimizer-Pro-FFmpeg)
+>
+> Convierte tus videos a un formato totalmente compatible (H.264 Baseline, AAC, faststart). Gratuita, de código abierto y fácil de usar.
 
 ### Contribuciones
 Este es un proyecto de código abierto. Cualquier mejora, corrección o propuesta por parte de la comunidad es bienvenida.
