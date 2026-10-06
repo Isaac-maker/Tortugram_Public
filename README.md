@@ -7,6 +7,11 @@
 **A specialized Telegram streaming client designed for Amazon Fire TV.**  
 *Un cliente de Telegram especializado en streaming multimedia para dispositivos Amazon Fire TV.*
 
+### 🎉 NEW! Now available on the official Amazon Appstore
+### 🎉 ¡NUEVO! Ya disponible en la tienda oficial de Amazon
+
+[![Amazon Appstore](https://img.shields.io/badge/Amazon-Get%20it%20on%20Appstore-FF9900?style=for-the-badge&logo=amazon&logoColor=white)](https://www.amazon.com/dp/B0HJCCQLBM)
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/J1P727O57W)
 [![Website](https://img.shields.io/badge/Web-Página%20Oficial-orange?style=for-the-badge&logo=google-chrome&logoColor=white)](https://isaac-maker.github.io/Tortugram_Public/)
 [![Download APK](https://img.shields.io/badge/Download-APK%20Final%20Release-2ba640?style=for-the-badge&logo=android)](https://github.com/Isaac-maker/Tortugram_Public/releases/)
@@ -49,6 +54,9 @@ Engineered exclusively for remote-control navigation on **Amazon Fire TV Stick**
 
 ### Download & Installation
 Get the final build directly from the releases section:
+🛒 **[Get Tortugram on the Amazon Appstore](https://www.amazon.com/dp/B0HJCCQLBM)** — now in the official store!
+
+Or download the APK directly:
 👉 **[Download Tortugram Final Release APK](https://github.com/Isaac-maker/Tortugram_Public/releases/tag/V_0.0.1)**
 
 ### 📹 Optimize Your Videos for Smooth Playback
@@ -99,6 +107,9 @@ Diseñada exclusivamente para navegación mediante control remoto en dispositivo
 
 ### Descarga e Instalación
 Obtén la versión final desde la sección de lanzamientos:
+🛒 **[Consigue Tortugram en Amazon Appstore](https://www.amazon.com/dp/B0HJCCQLBM)** — ¡ya en la tienda oficial!
+
+O descarga el APK directamente:
 👉 **[Descargar APK Versión Final de Tortugram](https://github.com/Isaac-maker/Tortugram_Public/releases/tag/V_0.0.1)**
 
 ### 📹 Optimiza tus videos para una reproducción fluida
